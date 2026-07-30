@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { visibleWidth } from "@earendil-works/pi-tui";
-import { buildFooterContent, renderSegment, renderSegments } from "../extensions/ui/footer/layout.js";
+import {
+  buildFooterContent,
+  buildFooterStatusRows,
+  renderSegment,
+  renderSegments,
+  sanitizeStatusText,
+} from "../extensions/ui/footer/layout.js";
 import { DEFAULT_CONTEXT_BAR_CONFIG, DEFAULT_FOOTER_CONFIG, normalizeConfig, normalizeSegments } from "../extensions/ui/footer/config.js";
 
 const theme = { fg: (_token: string, text: string) => text } as any;
@@ -19,12 +25,11 @@ describe("footer layout", () => {
       .toEqual(["π", "|", "work"]);
   });
 
-  it("uses the requested two-row layout", () => {
+  it("uses one fixed row followed by a status row", () => {
     expect(DEFAULT_FOOTER_CONFIG).toEqual({
       row1Left: ["pi", "separator", "model", "separator", "thinking"],
-      row1Right: ["mcp", "separator", "memory"],
+      row1Right: ["tokens", "separator", "cost", "separator", "context"],
       row2Left: ["path", "separator", "session"],
-      row2Right: ["tokens", "separator", "cost", "separator", "context"],
       contextBar: DEFAULT_CONTEXT_BAR_CONFIG,
     });
   });
@@ -69,15 +74,30 @@ describe("footer layout", () => {
     })).toBe("↑123.5K ↓6.8K");
   });
 
-  it("renders session, MCP and memory status", () => {
-    const output = renderSegments(["session", "separator", "mcp", "separator", "memory"], {
+  it("renders generic statuses after path and session, wrapping whole statuses", () => {
+    const rows = buildFooterStatusRows({
       ...context,
-      sessionName: "footer-layout",
-      mcpConnected: 2,
-      mcpConfigured: 3,
-      memoryTopics: 4,
-    }).join(" ");
-    expect(output).toBe("Session: footer-layout | MCP: 2/3 | Memory: 4");
+      sessionName: "s",
+    }, DEFAULT_FOOTER_CONFIG.row2Left, ["MCP ready", "Memory 4", "Plan 2/5"], 32);
+    expect(rows.map((line) => stripAnsi(line).trim())).toEqual([
+      "work | Session: s | MCP ready",
+      "Memory 4 | Plan 2/5",
+    ]);
+  });
+
+  it("sanitizes layout-breaking controls while preserving ANSI styling", () => {
+    const status = "\x1b[33mReady\n\t now\u0007\x1b[0m";
+    expect(sanitizeStatusText(status)).toBe("\x1b[33mReady now\x1b[0m");
+    const rows = buildFooterStatusRows(context, [], [status], 12);
+    expect(rows.join("")).toContain("\x1b[33m");
+    expect(rows.every((line) => visibleWidth(line) <= 12)).toBe(true);
+  });
+
+  it("wraps a status that is wider than an entire row without truncating it", () => {
+    const rows = buildFooterStatusRows(context, [], ["abcdefghijklmnopqrstuvwxyz"], 12);
+    expect(rows.length).toBeGreaterThan(1);
+    expect(rows.map((line) => stripAnsi(line).trim()).join("")).toBe("abcdefghijklmnopqrstuvwxyz");
+    expect(rows.every((line) => visibleWidth(line) <= 12)).toBe(true);
   });
 
   it("shows a context bar with current usage, limit and percentage", () => {
@@ -108,9 +128,6 @@ describe("footer layout", () => {
       model: { id: "very-long-model-name", name: "very-long-model-name" },
       thinkingLevel: "xhigh",
       sessionName: "a-long-session-name",
-      mcpConnected: 2,
-      mcpConfigured: 3,
-      memoryTopics: 4,
       inputTokens: 12_345,
       outputTokens: 6_789,
       cacheHitRate: 61.7,
@@ -122,9 +139,9 @@ describe("footer layout", () => {
     for (const width of [0, 1, 2, 8, 20, 40, 80]) {
       crowded.terminalWidth = width;
       const row1 = buildFooterContent(crowded, DEFAULT_FOOTER_CONFIG.row1Left, DEFAULT_FOOTER_CONFIG.row1Right, width);
-      const row2 = buildFooterContent(crowded, DEFAULT_FOOTER_CONFIG.row2Left, DEFAULT_FOOTER_CONFIG.row2Right, width);
+      const statusRows = buildFooterStatusRows(crowded, DEFAULT_FOOTER_CONFIG.row2Left, ["plugin one", "plugin two"], width);
       expect(visibleWidth(row1)).toBeLessThanOrEqual(width);
-      expect(visibleWidth(row2)).toBeLessThanOrEqual(width);
+      expect(statusRows.every((row) => visibleWidth(row) <= width)).toBe(true);
     }
   });
 });

@@ -104,10 +104,12 @@ describe("footer adapter", () => {
     const rendered = component.render(80);
     const renderedText = stripAnsi(rendered.join("\n"));
     expect(rendered.every((line: string) => visibleWidth(line) <= 80)).toBe(true);
-    expect(renderedText).toContain("MCP: 2/3 | Memory: 4");
-    expect(renderedText).toContain("repository | Session: work");
+    expect(renderedText).toContain("repository | Session: work | MCP: 3 servers enabled (2 connected)");
+    expect(renderedText).toContain("memory: 4");
+    expect(renderedText).toContain("📋 2/5");
     expect(renderedText).toContain("32.1k / 128k · 25.1%");
-    expect(renderedText).not.toContain("📋 2/5");
+    expect(renderedText.indexOf("MCP:")).toBeLessThan(renderedText.indexOf("memory:"));
+    expect(renderedText.indexOf("memory:")).toBeLessThan(renderedText.indexOf("📋"));
     component.dispose();
     service.dispose();
     expect(unsubscribe).toHaveBeenCalledOnce();

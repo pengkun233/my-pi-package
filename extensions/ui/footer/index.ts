@@ -3,7 +3,7 @@ import type { TUI } from "@earendil-works/pi-tui";
 import type { UiContext } from "../types.js";
 import { loadFooterConfig } from "./config.js";
 import { GitStatusCache } from "./git-status.js";
-import { buildFooterContent } from "./layout.js";
+import { buildFooterContent, buildFooterStatusRows } from "./layout.js";
 import type { FooterLayoutContext } from "./types.js";
 
 interface Usage {
@@ -14,34 +14,10 @@ interface Usage {
   cacheHitRate?: number;
   cost: number;
 }
-interface ExtensionRuntimeStatus {
-  mcpConnected?: number;
-  mcpConfigured?: number;
-  memoryTopics?: number;
-}
-
-function stripAnsi(value: string): string {
-  return value.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "");
-}
-
-export function parseExtensionStatuses(statuses: ReadonlyMap<string, string>): ExtensionRuntimeStatus {
-  const result: ExtensionRuntimeStatus = {};
-  const mcp = stripAnsi(statuses.get("mcp") ?? "");
-  const enabled = mcp.match(/(\d+)\s+servers?\s+enabled/i);
-  const disabled = mcp.match(/\((\d+)\s+disabled\)/i);
-  const connected = mcp.match(/\((\d+)\s+connected\)/i);
-  const connecting = mcp.match(/connecting\s+to\s+(\d+)\s+servers?/i);
-  if (enabled) {
-    result.mcpConnected = connected ? Number(connected[1]) : 0;
-    result.mcpConfigured = Number(enabled[1]) + (disabled ? Number(disabled[1]) : 0);
-  } else if (connecting) {
-    result.mcpConnected = 0;
-    result.mcpConfigured = Number(connecting[1]);
-  }
-
-  const memory = stripAnsi(statuses.get("memory") ?? "").match(/memory:\s*(\d+)/i);
-  if (memory) result.memoryTopics = Number(memory[1]);
-  return result;
+export function collectExtensionStatusTexts(statuses: ReadonlyMap<string, string>): string[] {
+  return [...statuses.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([, text]) => text);
 }
 
 function collectUsage(ctx: UiContext): Usage {
@@ -96,7 +72,7 @@ export class FooterService {
         const usage = collectUsage(this.ctx);
         const git = this.cache?.get();
         const context = this.ctx.getContextUsage?.();
-        const runtime = parseExtensionStatuses(this.footerData?.getExtensionStatuses() ?? new Map());
+        const statuses = collectExtensionStatusTexts(this.footerData?.getExtensionStatuses() ?? new Map());
         const layout: FooterLayoutContext = {
           theme,
           model: this.ctx.model,
@@ -117,13 +93,12 @@ export class FooterService {
           terminalWidth: width,
           contextBar: config.contextBar,
           sessionName: this.ctx.sessionManager?.getSessionName?.(),
-          ...runtime,
         };
         const row1 = buildFooterContent(layout, config.row1Left, config.row1Right, width);
-        const row2 = buildFooterContent(layout, config.row2Left, config.row2Right, width);
+        const statusRows = buildFooterStatusRows(layout, config.row2Left, statuses, width);
         let divider = "─".repeat(width);
         try { divider = theme.fg("separator" as any, divider); } catch {}
-        return ["", row1, divider, row2];
+        return ["", row1, divider, ...statusRows];
       },
       dispose: () => {
         if (componentDisposed) return;

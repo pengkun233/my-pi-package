@@ -1,7 +1,7 @@
 import type { Model } from "@earendil-works/pi-ai";
 import type { Theme } from "@earendil-works/pi-coding-agent";
 
-export const SEGMENT_IDS = ["pi", "model", "path", "git", "thinking", "tokens", "cost", "context", "session", "mcp", "memory", "separator"] as const;
+export const SEGMENT_IDS = ["pi", "model", "path", "git", "thinking", "tokens", "cost", "context", "session", "separator"] as const;
 export type SegmentId = (typeof SEGMENT_IDS)[number];
 
 export interface ContextBarConfig {
@@ -23,7 +23,6 @@ export interface FooterConfig {
   row1Left: SegmentId[];
   row1Right: SegmentId[];
   row2Left: SegmentId[];
-  row2Right: SegmentId[];
   contextBar: ContextBarConfig;
 }
 
@@ -45,7 +44,4 @@ export interface FooterLayoutContext {
   terminalWidth?: number;
   contextBar?: ContextBarConfig;
   sessionName?: string;
-  mcpConnected?: number;
-  mcpConfigured?: number;
-  memoryTopics?: number;
 }

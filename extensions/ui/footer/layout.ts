@@ -1,5 +1,5 @@
 import { basename } from "node:path";
-import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+import { truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
 import { DEFAULT_CONTEXT_BAR_CONFIG } from "./config.js";
 import type { ContextBarConfig, FooterLayoutContext, SegmentId } from "./types.js";
 
@@ -146,11 +146,6 @@ export function renderSegment(id: SegmentId, ctx: FooterLayoutContext): string |
       if (!ctx.sessionName) return undefined;
       return color("muted", `Session: ${truncateToWidth(ctx.sessionName, 30)}`);
     }
-    case "mcp": {
-      if (ctx.mcpConfigured === undefined) return undefined;
-      return color("accent", `MCP: ${ctx.mcpConnected ?? 0}/${ctx.mcpConfigured}`);
-    }
-    case "memory": return ctx.memoryTopics === undefined ? undefined : color("muted", `Memory: ${ctx.memoryTopics}`);
     case "separator": return color("separator", "|");
   }
 }
@@ -186,4 +181,59 @@ export function buildFooterContent(
   const clippedLeft = truncateToWidth(left, Math.max(0, innerWidth - rightWidth - 1));
   const gap = Math.max(1, innerWidth - visibleWidth(clippedLeft) - rightWidth);
   return truncateToWidth(` ${clippedLeft}${" ".repeat(gap)}${clippedRight} `, width);
+}
+
+export function sanitizeStatusText(text: string): string {
+  return text
+    .replace(/[\r\n\t]/g, " ")
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001a\u001c-\u001f\u007f]/g, "")
+    .replace(/ +/g, " ")
+    .trim();
+}
+
+function padFooterLine(line: string, width: number, innerWidth: number): string {
+  const clipped = truncateToWidth(line, innerWidth, "");
+  if (width < 3) return truncateToWidth(clipped, width, "");
+  return ` ${clipped}${" ".repeat(Math.max(0, innerWidth - visibleWidth(clipped)))} `;
+}
+
+export function buildFooterStatusRows(
+  ctx: FooterLayoutContext,
+  fixedIds: SegmentId[],
+  statuses: readonly string[],
+  width: number,
+): string[] {
+  if (width <= 0) return [];
+  const innerWidth = Math.max(1, width - (width >= 3 ? 2 : 0));
+  const separator = ` ${renderSegment("separator", ctx) ?? "|"} `;
+  const lines: string[] = [];
+  let current = "";
+
+  const startLine = (item: string): void => {
+    const wrapped = wrapTextWithAnsi(item, innerWidth);
+    lines.push(...wrapped.slice(0, -1));
+    current = wrapped.at(-1) ?? "";
+  };
+
+  const appendItem = (item: string): void => {
+    if (!item) return;
+    if (!current) {
+      startLine(item);
+      return;
+    }
+    if (visibleWidth(current) + visibleWidth(separator) + visibleWidth(item) <= innerWidth) {
+      current += separator + item;
+      return;
+    }
+    lines.push(current);
+    current = "";
+    startLine(item);
+  };
+
+  const fixed = renderSegments(fixedIds, ctx).join(" ");
+  if (fixed) startLine(fixed);
+  for (const status of statuses) appendItem(sanitizeStatusText(status));
+  if (current) lines.push(current);
+
+  return lines.map((line) => padFooterLine(line, width, innerWidth));
 }

@@ -34,7 +34,7 @@ Re-running it is safe. Run it again whenever `config/packages.json` changes. Pac
 
 `extensions/ui/index.ts` installs one TUI lifecycle with:
 
-- custom footer and startup header;
+- custom footer and startup header; the footer preserves every standard `setStatus()` contribution, sorts statuses by ID, and wraps overflow onto additional rows;
 - boxed native editor with the companion enabled by default;
 - active-theme-aware message/tool rendering and subagent styling;
 - working spinner and terminal-tab status;

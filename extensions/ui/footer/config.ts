@@ -20,9 +20,8 @@ export const DEFAULT_CONTEXT_BAR_CONFIG: ContextBarConfig = {
 
 export const DEFAULT_FOOTER_CONFIG: FooterConfig = {
   row1Left: ["pi", "separator", "model", "separator", "thinking"],
-  row1Right: ["mcp", "separator", "memory"],
+  row1Right: ["tokens", "separator", "cost", "separator", "context"],
   row2Left: ["path", "separator", "session"],
-  row2Right: ["tokens", "separator", "cost", "separator", "context"],
   contextBar: DEFAULT_CONTEXT_BAR_CONFIG,
 };
 
@@ -80,7 +79,6 @@ export function normalizeConfig(value: unknown): FooterConfig {
     row1Left: normalizeSegments(record.row1Left ?? DEFAULT_FOOTER_CONFIG.row1Left),
     row1Right: normalizeSegments(record.row1Right ?? DEFAULT_FOOTER_CONFIG.row1Right),
     row2Left: normalizeSegments(record.row2Left ?? DEFAULT_FOOTER_CONFIG.row2Left),
-    row2Right: normalizeSegments(record.row2Right ?? DEFAULT_FOOTER_CONFIG.row2Right),
     contextBar: normalizeContextBar(record.contextBar),
   };
 }
