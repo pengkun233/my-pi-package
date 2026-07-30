@@ -5,6 +5,9 @@ import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it } from "vitest";
 import policy from "../config/packages.json";
 
+const globalAgentsPolicy = readFileSync(join(process.cwd(), "config", "global-agents.md"), "utf8").trim();
+const globalAgentsStart = "<!-- my-pi-package:global-agents:start -->";
+const globalAgentsEnd = "<!-- my-pi-package:global-agents:end -->";
 const roots: string[] = [];
 afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
@@ -71,17 +74,22 @@ describe("installer", () => {
         "git:github.com/mattpocock/skills",
       ],
     }));
+    writeFileSync(join(f.agent, "AGENTS.md"), "# Existing global rule\n\nKeep this instruction.\n");
     mkdirSync(join(f.agent, "extensions", "memory"), { recursive: true });
     writeFileSync(join(f.agent, "extensions", "openai-usage.ts"), "legacy");
-    mkdirSync(join(f.agent, "prompts"), { recursive: true });
-    writeFileSync(join(f.agent, "prompts", "voice.md"), "legacy");
 
     const first = runInstall(f);
     expect(first.status, first.stderr).toBe(0);
     const firstSettings = readFileSync(join(f.agent, "settings.json"), "utf8");
+    const firstAgents = readFileSync(join(f.agent, "AGENTS.md"), "utf8");
     const second = runInstall(f);
     expect(second.status, second.stderr).toBe(0);
     expect(readFileSync(join(f.agent, "settings.json"), "utf8")).toBe(firstSettings);
+    expect(readFileSync(join(f.agent, "AGENTS.md"), "utf8")).toBe(firstAgents);
+
+    expect(firstAgents).toContain("# Existing global rule\n\nKeep this instruction.");
+    expect(firstAgents).toContain(`${globalAgentsStart}\n${globalAgentsPolicy}\n${globalAgentsEnd}`);
+    expect(firstAgents.match(new RegExp(globalAgentsStart, "g"))).toHaveLength(1);
 
     const settings = JSON.parse(firstSettings);
     expect(settings.defaultModel).toBe("keep-me");
@@ -107,7 +115,58 @@ describe("installer", () => {
     expect(first.stderr).toContain("legacy duplicate");
     expect(first.stderr).toContain(join(f.agent, "extensions", "memory"));
     expect(first.stderr).toContain(join(f.agent, "extensions", "openai-usage.ts"));
-    expect(first.stderr).toContain(join(f.agent, "prompts", "voice.md"));
+  });
+
+  it("updates its managed AGENTS block without changing surrounding whitespace", () => {
+    const f = fixture();
+    const customPolicy = join(f.root, "global-agents.md");
+    executable(join(f.bin, "rtk"), "#!/bin/sh\nexit 0\n");
+    writeFileSync(customPolicy, "# Updated voice policy\n\nUse the new rules.\n");
+    writeFileSync(
+      join(f.agent, "AGENTS.md"),
+      `Before this block  \n${globalAgentsStart}\n# Old voice policy\n${globalAgentsEnd}\nAfter this block  `,
+    );
+
+    const result = runInstall(f, { PACKAGE_GLOBAL_AGENTS_FILE: customPolicy });
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(readFileSync(join(f.agent, "AGENTS.md"), "utf8")).toBe(
+      `Before this block  \n${globalAgentsStart}\n# Updated voice policy\n\nUse the new rules.\n${globalAgentsEnd}\nAfter this block  `,
+    );
+  });
+
+  it("rejects an invalid global AGENTS policy before any installer side effects", () => {
+    const f = fixture();
+    const invalid = join(f.root, "global-agents.md");
+    const curlLog = join(f.root, "curl.log");
+    writeFileSync(invalid, "   \n");
+    executable(join(f.bin, "curl"), `#!/bin/sh\nprintf called > "${curlLog}"\n`);
+
+    const result = runInstall(f, {
+      PACKAGE_GLOBAL_AGENTS_FILE: invalid,
+      RTK_COMMAND: "missing-rtk-for-test",
+    });
+
+    expect(result.status).not.toBe(0);
+    expect(existsSync(f.piLog)).toBe(false);
+    expect(existsSync(curlLog)).toBe(false);
+    expect(existsSync(join(f.agent, "settings.json"))).toBe(false);
+    expect(existsSync(join(f.agent, "AGENTS.md"))).toBe(false);
+  });
+
+  it("validates the package source before installing RTK", () => {
+    const f = fixture();
+    const curlLog = join(f.root, "curl.log");
+    executable(join(f.bin, "curl"), `#!/bin/sh\nprintf called > "${curlLog}"\n`);
+
+    const result = runInstall(f, {
+      MY_PI_PACKAGE_SOURCE: "not-a-valid-source",
+      RTK_COMMAND: "missing-rtk-for-test",
+    });
+
+    expect(result.status).not.toBe(0);
+    expect(existsSync(f.piLog)).toBe(false);
+    expect(existsSync(curlLog)).toBe(false);
   });
 
   it("rejects a malformed policy before running RTK or Pi installers", () => {

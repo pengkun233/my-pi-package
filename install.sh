@@ -3,8 +3,10 @@ set -euo pipefail
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
 POLICY_FILE="${PACKAGE_POLICY_FILE:-$SCRIPT_DIR/config/packages.json}"
+GLOBAL_AGENTS_POLICY_FILE="${PACKAGE_GLOBAL_AGENTS_FILE:-$SCRIPT_DIR/config/global-agents.md}"
 AGENT_DIR="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}"
 SETTINGS_FILE="$AGENT_DIR/settings.json"
+GLOBAL_AGENTS_FILE="$AGENT_DIR/AGENTS.md"
 PI_BIN="${PI_BIN:-pi}"
 RTK_COMMAND="${RTK_COMMAND:-rtk}"
 RTK_INSTALL_URL="https://raw.githubusercontent.com/rtk-ai/rtk/master/install.sh"
@@ -24,9 +26,16 @@ else
   command -v "$PI_BIN" >/dev/null 2>&1 || fail "pi is required"
 fi
 [[ -f "$POLICY_FILE" ]] || fail "missing package policy"
+[[ -f "$GLOBAL_AGENTS_POLICY_FILE" ]] || fail "missing global AGENTS policy"
 
 POLICY_SOURCES=$(node -e '
-  const policy = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"));
+  const fs = require("node:fs");
+  const policy = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+  const globalAgentsPolicy = fs.readFileSync(process.argv[2], "utf8").trim();
+  const globalAgentsMarkers = ["<!-- my-pi-package:global-agents:start -->", "<!-- my-pi-package:global-agents:end -->"];
+  if (!globalAgentsPolicy || globalAgentsMarkers.some((marker) => globalAgentsPolicy.includes(marker))) {
+    throw new Error("global-agents.md must be non-empty and must not contain management markers");
+  }
   const matt = policy.mattPocockSkills;
   const npmSource = /^npm:(?:@[a-z0-9._-]+\/)?[a-z0-9._-]+$/i;
   if (!Array.isArray(policy.packages) || !policy.packages.every((source) => typeof source === "string" && npmSource.test(source))) {
@@ -52,17 +61,7 @@ POLICY_SOURCES=$(node -e '
   }
   for (const source of policy.packages) console.log(source);
   console.log(matt.source);
-' "$POLICY_FILE")
-
-if ! command -v "$RTK_COMMAND" >/dev/null 2>&1; then
-  [[ "$(uname -s)" == "Linux" ]] || fail "automatic RTK installation is supported only on Linux"
-  command -v curl >/dev/null 2>&1 || fail "curl is required to install RTK"
-  printf 'Installing RTK...\n'
-  curl -fsSL "$RTK_INSTALL_URL" | sh
-  if ! command -v "$RTK_COMMAND" >/dev/null 2>&1 && [[ ! -x "$HOME/.local/bin/rtk" ]]; then
-    fail "RTK installer completed but rtk was not found"
-  fi
-fi
+' "$POLICY_FILE" "$GLOBAL_AGENTS_POLICY_FILE")
 
 candidate="${MY_PI_PACKAGE_SOURCE:-}"
 if [[ -z "$candidate" ]]; then
@@ -107,6 +106,16 @@ NODE
 ) || exit $?
 
 mapfile -t PACKAGE_SOURCES <<< "$POLICY_SOURCES"
+
+if ! command -v "$RTK_COMMAND" >/dev/null 2>&1; then
+  [[ "$(uname -s)" == "Linux" ]] || fail "automatic RTK installation is supported only on Linux"
+  command -v curl >/dev/null 2>&1 || fail "curl is required to install RTK"
+  printf 'Installing RTK...\n'
+  curl -fsSL "$RTK_INSTALL_URL" | sh
+  if ! command -v "$RTK_COMMAND" >/dev/null 2>&1 && [[ ! -x "$HOME/.local/bin/rtk" ]]; then
+    fail "RTK installer completed but rtk was not found"
+  fi
+fi
 
 printf 'Registering %s...\n' "$SELF_SOURCE"
 "$PI_BIN" install "$SELF_SOURCE"
@@ -253,6 +262,77 @@ try {
 }
 NODE
 
+GLOBAL_AGENTS_POLICY_FILE="$GLOBAL_AGENTS_POLICY_FILE" GLOBAL_AGENTS_FILE="$GLOBAL_AGENTS_FILE" node <<'NODE'
+const fs = require("node:fs");
+const path = require("node:path");
+
+const policyPath = process.env.GLOBAL_AGENTS_POLICY_FILE;
+const agentsPath = process.env.GLOBAL_AGENTS_FILE;
+const startMarker = "<!-- my-pi-package:global-agents:start -->";
+const endMarker = "<!-- my-pi-package:global-agents:end -->";
+if (!policyPath || !agentsPath) throw new Error("Invalid global AGENTS policy paths");
+
+const policy = fs.readFileSync(policyPath, "utf8").trim();
+if (!policy || policy.includes(startMarker) || policy.includes(endMarker)) {
+  throw new Error("Global AGENTS policy must be non-empty and must not contain management markers");
+}
+const managed = `${startMarker}\n${policy}\n${endMarker}`;
+
+fs.mkdirSync(path.dirname(agentsPath), { recursive: true, mode: 0o700 });
+const lockPath = `${agentsPath}.lock`;
+let locked = false;
+for (let attempt = 0; attempt < 100; attempt += 1) {
+  try {
+    fs.mkdirSync(lockPath, { mode: 0o700 });
+    locked = true;
+    break;
+  } catch (error) {
+    if (error.code !== "EEXIST") throw error;
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20);
+  }
+}
+if (!locked) throw new Error(`Timed out waiting for AGENTS lock: ${lockPath}`);
+
+try {
+  const current = fs.existsSync(agentsPath) ? fs.readFileSync(agentsPath, "utf8") : "";
+  const start = current.indexOf(startMarker);
+  const end = current.indexOf(endMarker);
+  let next;
+
+  if (start !== -1 || end !== -1) {
+    if (start === -1 || end === -1 || end < start || current.indexOf(startMarker, start + 1) !== -1 || current.indexOf(endMarker, end + 1) !== -1) {
+      throw new Error(`Refusing to modify malformed managed block in ${agentsPath}`);
+    }
+    next = `${current.slice(0, start)}${managed}${current.slice(end + endMarker.length)}`;
+  } else {
+    const unmanaged = current.indexOf(policy);
+    if (unmanaged !== -1) {
+      if (current.indexOf(policy, unmanaged + policy.length) !== -1) {
+        throw new Error(`Refusing to migrate duplicate global AGENTS policies in ${agentsPath}`);
+      }
+      next = `${current.slice(0, unmanaged)}${managed}${current.slice(unmanaged + policy.length)}`;
+    } else if (current.trim().length === 0) {
+      next = `${managed}\n`;
+    } else {
+      const separator = current.endsWith("\n\n") ? "" : current.endsWith("\n") ? "\n" : "\n\n";
+      next = `${current}${separator}${managed}\n`;
+    }
+  }
+
+  if (next !== current) {
+    const target = fs.existsSync(agentsPath) && fs.lstatSync(agentsPath).isSymbolicLink()
+      ? fs.realpathSync(agentsPath)
+      : agentsPath;
+    const mode = fs.existsSync(target) ? fs.statSync(target).mode & 0o777 : 0o600;
+    const temporary = `${target}.${process.pid}.tmp`;
+    fs.writeFileSync(temporary, next, { encoding: "utf8", mode });
+    fs.renameSync(temporary, target);
+  }
+} finally {
+  fs.rmSync(lockPath, { recursive: true, force: true });
+}
+NODE
+
 warn_path() {
   if [[ -e "$1" ]]; then
     printf 'my-pi-package: warning: legacy duplicate remains at %s; remove it manually after verification\n' "$1" >&2
@@ -264,7 +344,6 @@ warn_path "$AGENT_DIR/extensions/openai-usage.ts"
 warn_path "$AGENT_DIR/prompts/Get-Shit-Done.md"
 warn_path "$AGENT_DIR/prompts/Neat-Freak.md"
 warn_path "$AGENT_DIR/prompts/tidy-memory.md"
-warn_path "$AGENT_DIR/prompts/voice.md"
 
 for skill in \
   code-review diagnosing-bugs domain-modeling grill-with-docs implement \

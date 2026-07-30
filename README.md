@@ -1,6 +1,6 @@
 # my-pi-package
 
-Private personal [Pi](https://pi.dev) package for reproducing this setup on another machine. It bundles an always-on TUI, a discussion-only Chat Mode, progressive memory, OpenAI usage, four prompt templates, and the selectable `slop` theme. It contains no skills, credentials, sessions, memory data, or other machine state.
+Private personal [Pi](https://pi.dev) package for reproducing this setup on another machine. It bundles an always-on TUI, a discussion-only Chat Mode, progressive memory, OpenAI usage, three prompt templates, the selectable `slop` theme, and an installer-managed global voice-input preference. It contains no skills, credentials, sessions, memory data, or other machine state.
 
 ## Install
 
@@ -23,6 +23,7 @@ The installer:
 - installs `git:github.com/mattpocock/skills` with only the exact 14 configured skills enabled;
 - normalizes Plannotator to an ordinary enabled package entry;
 - sets the global Pi theme to `slop` while preserving unrelated settings;
+- installs the voice-input policy as a managed block in `~/.pi/agent/AGENTS.md`, preserving unrelated global instructions;
 - installs the RTK executable with the official Linux installer only when it is missing;
 - warns about legacy duplicate resources but never deletes or moves them.
 
@@ -70,6 +71,12 @@ RPC, JSON, and print sessions default to normal mode, though `/chat` can enable 
 
 `extensions/openai-usage.ts` provides `/usage` for a logged-in `openai-codex` account. It reads credentials through Pi at runtime and does not store or package them.
 
+### Global voice-input preference
+
+`config/global-agents.md` is installed into a clearly marked, package-managed block in `~/.pi/agent/AGENTS.md`. This makes the voice-input tolerance rules active by default in every Pi session. Existing instructions outside that block are preserved, and rerunning `install.sh` updates the managed block idempotently.
+
+Pi packages do not natively expose `AGENTS.md` as a manifest resource, so this policy is applied by the installer rather than the `pi.prompts` manifest. After changing or updating `config/global-agents.md`, rerun `install.sh`, then run `/reload` or restart Pi. `pi update --extensions` alone does not refresh this managed block.
+
 ### Prompts and theme
 
 Prompt templates:
@@ -77,7 +84,6 @@ Prompt templates:
 - `/Get-Shit-Done`
 - `/Neat-Freak`
 - `/tidy-memory`
-- `/voice`
 
 `slop` is an ordinary package theme. `install.sh` selects it globally; users can select another theme later.
 

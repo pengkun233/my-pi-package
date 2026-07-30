@@ -36,7 +36,7 @@ describe("package boundary", () => {
   });
 
   it("uses Pi-supported prompt argument placeholders", () => {
-    for (const name of ["Get-Shit-Done.md", "Neat-Freak.md", "tidy-memory.md", "voice.md"]) {
+    for (const name of ["Get-Shit-Done.md", "Neat-Freak.md", "tidy-memory.md"]) {
       const prompt = readFileSync(join(process.cwd(), "prompts", name), "utf8");
       expect(prompt).not.toContain("${ARGUMENTS}");
     }
