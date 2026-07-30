@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
 
-const allowed = /^(package\/(package\.json|README\.md|LICENSE|THIRD_PARTY_NOTICES\.md|install\.sh|config\/packages\.json|themes\/slop\.json|prompts\/(Get-Shit-Done|Neat-Freak|tidy-memory|voice)\.md|extensions\/(openai-usage\.ts|memory\/.*\.ts|memory\/README\.md|ui\/.*\.ts)))$/;
+const allowed = /^(package\/(package\.json|README\.md|LICENSE|THIRD_PARTY_NOTICES\.md|install\.sh|config\/packages\.json|themes\/slop\.json|prompts\/(Get-Shit-Done|Neat-Freak|tidy-memory|voice)\.md|extensions\/(chat-mode\.ts|openai-usage\.ts|memory\/.*\.ts|memory\/README\.md|ui\/.*\.ts)))$/;
 
 describe("tarball boundary", () => {
   it("contains only reproducible package resources", () => {

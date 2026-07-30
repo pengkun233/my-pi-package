@@ -1,6 +1,6 @@
 # my-pi-package
 
-Private personal [Pi](https://pi.dev) package for reproducing this setup on another machine. It bundles an always-on TUI, progressive memory, OpenAI usage, four prompt templates, and the selectable `slop` theme. It contains no skills, credentials, sessions, memory data, or other machine state.
+Private personal [Pi](https://pi.dev) package for reproducing this setup on another machine. It bundles an always-on TUI, a discussion-only Chat Mode, progressive memory, OpenAI usage, four prompt templates, and the selectable `slop` theme. It contains no skills, credentials, sessions, memory data, or other machine state.
 
 ## Install
 
@@ -40,7 +40,7 @@ Re-running it is safe. Run it again whenever `config/packages.json` changes. Pac
 - working spinner and terminal-tab status;
 - `/ack` to return a settled terminal status to idle.
 
-There is no Chat Mode, Plan Mode, `/pikit-ui` toggle, persisted enable state, or runtime theme switching. The UI follows whichever Pi theme is active and disposes its editor, footer, header, timers, title status, and adapters on reload or session shutdown.
+There is no Plan Mode, `/pikit-ui` toggle, persisted UI enable state, or runtime theme switching. The UI follows whichever Pi theme is active and disposes its editor, footer, header, timers, title status, and adapters on reload or session shutdown.
 
 Optional machine-local overrides:
 
@@ -48,6 +48,19 @@ Optional machine-local overrides:
 - `~/.pi/agent/configs/ui-footer.json`
 
 The package defaults remain authoritative when those files are absent or invalid.
+
+### Chat Mode
+
+`extensions/chat-mode.ts` provides a lightweight discussion-only mode:
+
+- enabled by default in interactive TUI sessions and reset to that default after startup, `/reload`, `/resume`, or a new session;
+- toggled with `/chat` or `Ctrl+Alt+C` while the agent is idle;
+- removes `edit` and `write`, adds a blocking backstop for those tool calls, and injects per-turn guidance against actions with side effects;
+- preserves read, shell, search, subagent, and extension tools, so it is a guard against accidental edits rather than a security sandbox;
+- leaves user-entered `!` and `!!` shell commands untouched;
+- shows `💬 chat` in the footer while active.
+
+RPC, JSON, and print sessions default to normal mode, though `/chat` can enable Chat Mode where extension commands are available. Chat Mode state is intentionally not persisted.
 
 ### Memory
 

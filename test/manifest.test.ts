@@ -26,6 +26,7 @@ describe("package boundary", () => {
     expect(pkg.private).toBe(true);
     expect(pkg.pi.extensions).toEqual([
       "./extensions/ui/index.ts",
+      "./extensions/chat-mode.ts",
       "./extensions/memory/index.ts",
       "./extensions/openai-usage.ts",
     ]);
