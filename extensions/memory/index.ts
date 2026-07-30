@@ -82,6 +82,7 @@ export default function memoryExtension(pi: ExtensionAPI) {
 	let state: MemoryState | undefined;
 	let stateCwd: string | undefined;
 	let initialization: Promise<MemoryState> | undefined;
+	let memoryPromptSnapshot: string | undefined;
 
 	async function getState(cwd: string): Promise<MemoryState> {
 		if (state && stateCwd === cwd) return state;
@@ -103,9 +104,15 @@ export default function memoryExtension(pi: ExtensionAPI) {
 	}
 
 	pi.on("session_start", async (_event, ctx) => {
+		memoryPromptSnapshot = undefined;
 		try {
 			const current = await getState(ctx.cwd);
-			const status = await memoryStatus(current);
+			const memoryToolActive = pi.getActiveTools().includes("memory");
+			const [prompt, status] = await Promise.all([
+				buildMemoryPrompt(current, memoryToolActive),
+				memoryStatus(current),
+			]);
+			memoryPromptSnapshot = prompt;
 			const projectTopics = status.stores.find((store) => store.scope === "project")?.topics || 0;
 			ctx.ui.setStatus("memory", `memory: ${projectTopics}`);
 		} catch (error) {
@@ -114,16 +121,9 @@ export default function memoryExtension(pi: ExtensionAPI) {
 		}
 	});
 
-	pi.on("before_agent_start", async (event, ctx) => {
-		try {
-			const current = await getState(ctx.cwd);
-			const memoryToolActive = event.systemPromptOptions.selectedTools?.includes("memory") ?? false;
-			const memoryPrompt = await buildMemoryPrompt(current, memoryToolActive);
-			return { systemPrompt: `${event.systemPrompt}\n\n${memoryPrompt}` };
-		} catch (error) {
-			ctx.ui.notify(`Memory index injection failed: ${errorMessage(error)}`, "warning");
-			return;
-		}
+	pi.on("before_agent_start", async (event) => {
+		if (memoryPromptSnapshot === undefined) return;
+		return { systemPrompt: `${event.systemPrompt}\n\n${memoryPromptSnapshot}` };
 	});
 
 	pi.registerTool({

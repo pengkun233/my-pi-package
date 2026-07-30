@@ -4,8 +4,9 @@ A Claude Code-style progressive-disclosure memory extension for Pi.
 
 ## Behavior
 
-- Injects compact global and project `MEMORY.md` indexes before every user prompt.
-- Keeps full topic documents out of context until the `memory` tool reads or searches them.
+- Loads compact global and project `MEMORY.md` indexes once when the session runtime starts, then injects that byte-stable snapshot through the system prompt before every user prompt.
+- Keeps the injected snapshot fixed for the runtime even when memory is updated, preserving the prompt-cache prefix; startup, `/resume`, `/new`, `/fork`, and `/reload` create a fresh runtime snapshot.
+- Keeps full topic documents out of context until the `memory` tool reads or searches them; tool reads and searches always use the latest on-disk data.
 - Stores project memories outside the repository under `~/.pi/agent/memory/projects/`.
 - Shares project memory across worktrees and, when `origin` is configured, across clones of the same remote.
 - Uses atomic writes, a cross-process lock directory, secret-pattern checks, and an audit log.
@@ -43,7 +44,7 @@ The model can use the `memory` tool with these actions:
 - `forget`
 - `reindex`
 
-`upsert` replaces the complete topic. Read an existing topic before updating it.
+`upsert` replaces the complete topic. Read an existing topic before updating it. Memory mutations update the on-disk index immediately but do not refresh the snapshot injected into the current session runtime.
 
 ## Topic format
 
