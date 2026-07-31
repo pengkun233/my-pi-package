@@ -5,6 +5,7 @@ import pkg from "../package.json";
 import policy from "../config/packages.json";
 
 const skills = [
+  "skills/engineering/ask-matt/SKILL.md",
   "skills/engineering/code-review/SKILL.md",
   "skills/engineering/diagnosing-bugs/SKILL.md",
   "skills/engineering/domain-modeling/SKILL.md",

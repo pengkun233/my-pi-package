@@ -13,6 +13,7 @@
     "source": "git:github.com/mattpocock/skills",
     "extensions": [],
     "skills": [
+      "skills/engineering/ask-matt/SKILL.md",
       "skills/engineering/code-review/SKILL.md",
       "skills/engineering/diagnosing-bugs/SKILL.md",
       "skills/engineering/domain-modeling/SKILL.md",

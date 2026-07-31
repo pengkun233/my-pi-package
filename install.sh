@@ -48,8 +48,8 @@ POLICY_SOURCES=$(node -e '
     throw new Error("packages.json must define the unpinned Matt Pocock skill package and filter");
   }
   const skillPath = /^skills\/(?:engineering|productivity)\/[a-z0-9-]+\/SKILL\.md$/;
-  if (matt.skills.length !== 14 || !matt.skills.every((skill) => typeof skill === "string" && skillPath.test(skill))) {
-    throw new Error("packages.json must contain 14 exact Matt Pocock SKILL.md paths");
+  if (matt.skills.length !== 15 || !matt.skills.every((skill) => typeof skill === "string" && skillPath.test(skill))) {
+    throw new Error("packages.json must contain 15 exact Matt Pocock SKILL.md paths");
   }
   if (new Set(matt.skills).size !== matt.skills.length) {
     throw new Error("packages.json Matt Pocock skills must not contain duplicates");
@@ -346,7 +346,7 @@ warn_path "$AGENT_DIR/prompts/Neat-Freak.md"
 warn_path "$AGENT_DIR/prompts/tidy-memory.md"
 
 for skill in \
-  code-review diagnosing-bugs domain-modeling grill-with-docs implement \
+  ask-matt code-review diagnosing-bugs domain-modeling grill-with-docs implement \
   setup-matt-pocock-skills tdd to-spec to-tickets wayfinder grill-me grilling \
   handoff writing-great-skills; do
   warn_path "$HOME/.agents/skills/$skill"

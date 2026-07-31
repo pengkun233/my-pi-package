@@ -20,7 +20,7 @@ The installer:
 
 - registers this repository as an update-managed, unpinned Git Pi Package;
 - installs the independent packages in `config/packages.json`;
-- installs `git:github.com/mattpocock/skills` with only the exact 14 configured skills enabled;
+- installs `git:github.com/mattpocock/skills` with only the exact 15 configured skills enabled;
 - normalizes Plannotator to an ordinary enabled package entry;
 - sets the global Pi theme to `slop` while preserving unrelated settings;
 - installs the voice-input policy as a managed block in `~/.pi/agent/AGENTS.md`, preserving unrelated global instructions;
