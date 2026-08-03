@@ -19,7 +19,7 @@ const skills = [
   "skills/productivity/grill-me/SKILL.md",
   "skills/productivity/grilling/SKILL.md",
   "skills/productivity/handoff/SKILL.md",
-  "skills/productivity/writing-great-skills/SKILL.md",
+  "skills/productivity/writing-for-agents/SKILL.md",
 ];
 
 describe("package boundary", () => {
@@ -55,7 +55,7 @@ describe("package boundary", () => {
       "npm:@plannotator/pi-extension",
     ]);
     expect(policy.mattPocockSkills).toEqual({
-      source: "git:github.com/mattpocock/skills",
+      source: "git:github.com/mattpocock/skills@release/v1.2",
       extensions: [],
       skills,
       prompts: [],

@@ -44,8 +44,8 @@ POLICY_SOURCES=$(node -e '
   if (new Set(policy.packages).size !== policy.packages.length) {
     throw new Error("packages.json packages must not contain duplicates");
   }
-  if (!matt || matt.source !== "git:github.com/mattpocock/skills" || !Array.isArray(matt.skills)) {
-    throw new Error("packages.json must define the unpinned Matt Pocock skill package and filter");
+  if (!matt || matt.source !== "git:github.com/mattpocock/skills@release/v1.2" || !Array.isArray(matt.skills)) {
+    throw new Error("packages.json must define the release/v1.2 Matt Pocock skill package and filter");
   }
   const skillPath = /^skills\/(?:engineering|productivity)\/[a-z0-9-]+\/SKILL\.md$/;
   if (matt.skills.length !== 15 || !matt.skills.every((skill) => typeof skill === "string" && skillPath.test(skill))) {
@@ -173,7 +173,7 @@ function gitIdentity(source) {
       return undefined;
     }
   }
-  pathname = pathname.replace(/^\/+/, "").replace(/\.git(?:@[^/]+)?$/i, "").replace(/@[^/]+$/, "");
+  pathname = pathname.replace(/^\/+/, "").replace(/\.git(?:@.*)?$/i, "").replace(/@.*$/, "");
   if (!host || !pathname) return undefined;
   return `git:${host.toLowerCase()}/${pathname.toLowerCase()}`;
 }
@@ -348,7 +348,7 @@ warn_path "$AGENT_DIR/prompts/tidy-memory.md"
 for skill in \
   ask-matt code-review diagnosing-bugs domain-modeling grill-with-docs implement \
   setup-matt-pocock-skills tdd to-spec to-tickets wayfinder grill-me grilling \
-  handoff writing-great-skills; do
+  handoff writing-for-agents; do
   warn_path "$HOME/.agents/skills/$skill"
 done
 

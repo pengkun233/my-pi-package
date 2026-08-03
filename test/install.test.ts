@@ -58,7 +58,7 @@ function packageSource(value: unknown): string | undefined {
 }
 
 describe("installer", () => {
-  it("installs unpinned packages and idempotently merges only owned settings", () => {
+  it("installs managed packages and idempotently merges only owned settings", () => {
     const f = fixture();
     executable(join(f.bin, "rtk"), "#!/bin/sh\nexit 0\n");
     const legacyPikit = "../../ai_playground/pi_workspace/pikit-ui";
