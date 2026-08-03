@@ -54,14 +54,14 @@ The package defaults remain authoritative when those files are absent or invalid
 
 `extensions/chat-mode.ts` provides a lightweight discussion-only mode:
 
-- enabled by default in interactive TUI sessions and reset to that default after startup, `/reload`, `/resume`, or a new session;
+- disabled by default in every session and reset to that default after startup, `/reload`, `/resume`, or a new session;
 - toggled with `/chat` or `Ctrl+Alt+C` while the agent is idle;
 - removes `edit` and `write`, adds a blocking backstop for those tool calls, and injects per-turn guidance against actions with side effects;
 - preserves read, shell, search, subagent, and extension tools, so it is a guard against accidental edits rather than a security sandbox;
 - leaves user-entered `!` and `!!` shell commands untouched;
 - shows `💬 chat` in the footer while active.
 
-RPC, JSON, and print sessions default to normal mode, though `/chat` can enable Chat Mode where extension commands are available. Chat Mode state is intentionally not persisted.
+All session modes default to normal mode, though `/chat` can enable Chat Mode where extension commands are available. Chat Mode state is intentionally not persisted.
 
 ### Memory
 

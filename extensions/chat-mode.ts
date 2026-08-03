@@ -101,9 +101,7 @@ export default function chatModeExtension(pi: ExtensionAPI): void {
   pi.on("session_start", (_event, ctx) => {
     enabled = false;
     restorableWriteTools.clear();
-
-    if (ctx.mode === "tui") enable(ctx, false);
-    else updateStatus(ctx);
+    updateStatus(ctx);
   });
 
   pi.on("before_agent_start", (event) => {
