@@ -3,8 +3,10 @@ import type {
   ExtensionCommandContext,
   ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
-import { LOOP_ACTIVITY_EVENT, type LoopActivityEvent } from "./events.js";
+import { setTerminalBackgroundActivity } from "../ui/terminal-status-events.js";
 
+const LOOP_STATUS_ID = "loop";
+const BEIJING_OFFSET_MS = 8 * 60 * 60_000;
 const MIN_INTERVAL_MS = 60_000;
 const MAX_INTERVAL_MS = 7 * 24 * 60 * 60_000;
 const UNIT_MS = {
@@ -22,6 +24,33 @@ export interface LoopDefinition {
 export type LoopDefinitionResult =
   | { ok: true; value: LoopDefinition }
   | { ok: false; error: string };
+
+function toBeijingDate(timestamp: number): Date {
+  return new Date(timestamp + BEIJING_OFFSET_MS);
+}
+
+function pad(value: number): string {
+  return String(value).padStart(2, "0");
+}
+
+export function formatBeijingTime(timestamp: number): string {
+  const date = toBeijingDate(timestamp);
+  return [
+    `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`,
+    `${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}`,
+    "UTC+8",
+  ].join(" ");
+}
+
+export function formatBeijingFooterTime(timestamp: number, now = Date.now()): string {
+  const target = toBeijingDate(timestamp);
+  const reference = toBeijingDate(now);
+  const time = `${pad(target.getUTCHours())}:${pad(target.getUTCMinutes())}`;
+  const sameDay = target.getUTCFullYear() === reference.getUTCFullYear()
+    && target.getUTCMonth() === reference.getUTCMonth()
+    && target.getUTCDate() === reference.getUTCDate();
+  return sameDay ? time : `${pad(target.getUTCMonth() + 1)}-${pad(target.getUTCDate())} ${time}`;
+}
 
 interface ActiveLoop extends LoopDefinition {
   createdAt: number;
@@ -109,6 +138,7 @@ export class LoopService {
       nextRunAt: now + parsed.value.intervalMs,
     };
     this.armTimer();
+    this.renderFooterStatus();
     this.emitActivity(true);
     ctx.ui.notify(
       `Loop started: every ${parsed.value.intervalLabel}. Next run: ${this.formatTime(this.activeLoop.nextRunAt)}`,
@@ -124,6 +154,7 @@ export class LoopService {
 
     loop.nextRunAt = Date.now() + loop.intervalMs;
     this.armTimer();
+    this.renderFooterStatus();
     if (!ctx.isIdle()) return;
 
     try {
@@ -173,17 +204,26 @@ export class LoopService {
   private clearLoop(): void {
     if (this.timer !== undefined) clearTimeout(this.timer);
     this.timer = undefined;
-    if (!this.activeLoop) return;
+    const wasActive = this.activeLoop !== undefined;
     this.activeLoop = undefined;
-    this.emitActivity(false);
+    this.renderFooterStatus();
+    if (wasActive) this.emitActivity(false);
+  }
+
+  private renderFooterStatus(): void {
+    const loop = this.activeLoop;
+    const text = loop
+      ? `↻ ${loop.intervalLabel} · ${formatBeijingFooterTime(loop.nextRunAt)}`
+      : undefined;
+    this.context?.ui.setStatus(LOOP_STATUS_ID, text);
   }
 
   private emitActivity(active: boolean): void {
-    this.pi.events.emit(LOOP_ACTIVITY_EVENT, { active } satisfies LoopActivityEvent);
+    setTerminalBackgroundActivity(this.pi.events, "loop", active);
   }
 
   private formatTime(timestamp: number): string {
-    return new Date(timestamp).toLocaleString();
+    return formatBeijingTime(timestamp);
   }
 }
 

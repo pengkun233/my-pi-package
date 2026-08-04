@@ -57,9 +57,11 @@ The package defaults remain authoritative when those files are absent or invalid
 - `/loop 5m check the deploy` starts a Loop after validating a `m`, `h`, or `d` interval from `1m` through `7d`;
 - `/loop` or `/loop status` shows its prompt, interval, creation time, and next run;
 - `/loop stop` cancels future runs without aborting work already in progress;
-- a tick is skipped when the main agent is busy, and all Loop state is discarded on reload or session shutdown.
+- the footer shows a compact text status such as `↻ 5m · 09:30`; next-day runs include the date, for example `↻ 5m · 08-05 09:30`;
+- all displayed creation and next-run times use Beijing time (`UTC+8`), independent of the machine's local timezone;
+- a tick is skipped when the main agent is busy, and all Loop state and footer status are discarded on reload or session shutdown.
 
-The terminal-tab title shows `🟣 等待中` whenever a Loop is active or a foreground/background `pi-subagents` run is detected. Input-required and error states retain higher priority.
+Loop publishes background activity through the terminal-status plugin's generic event contract. The terminal-tab title shows `🟣 等待中` whenever a Loop is active or a foreground/background `pi-subagents` run is detected. Input-required and error states retain higher priority.
 
 ### Chat Mode
 

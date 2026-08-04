@@ -5,7 +5,10 @@ import type {
   ToolExecutionStartEvent,
 } from "@earendil-works/pi-coding-agent";
 import { basename } from "node:path";
-import { LOOP_ACTIVITY_EVENT, isLoopActivityEvent } from "../loop/events.js";
+import {
+  isTerminalBackgroundActivityEvent,
+  TERMINAL_BACKGROUND_ACTIVITY_EVENT,
+} from "./terminal-status-events.js";
 import type { UiContext } from "./types.js";
 
 const NEEDS_INPUT_EVENT = "my-pi-package:terminal-status:needs-input";
@@ -90,9 +93,9 @@ export class TerminalStatusService {
         }
         this.render();
       }),
-      this.dependencies.events.on(LOOP_ACTIVITY_EVENT, (event) => {
-        if (!isLoopActivityEvent(event)) return;
-        this.setBackgroundWork("loop", event.active);
+      this.dependencies.events.on(TERMINAL_BACKGROUND_ACTIVITY_EVENT, (event) => {
+        if (!isTerminalBackgroundActivityEvent(event)) return;
+        this.setBackgroundWork(`extension:${event.source}`, event.active);
       }),
       this.dependencies.events.on(SUBAGENT_ASYNC_STARTED_EVENT, (event) => {
         const id = subagentRunId(event);

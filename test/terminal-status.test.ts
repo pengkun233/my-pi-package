@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { LOOP_ACTIVITY_EVENT } from "../extensions/loop/events.js";
 import { TerminalStatusService, withTerminalNeedsInput } from "../extensions/ui/terminal-status.js";
+import { TERMINAL_BACKGROUND_ACTIVITY_EVENT } from "../extensions/ui/terminal-status-events.js";
 
 function harness() {
   const listeners = new Map<string, Set<(value: unknown) => void>>();
@@ -26,11 +26,11 @@ function harness() {
 }
 
 describe("terminal status background activity", () => {
-  it("shows purple while a Loop is active and keeps errors above it", () => {
+  it("shows purple while an extension reports background activity and keeps errors above it", () => {
     const h = harness();
     expect(h.setTitle).toHaveBeenLastCalledWith("⚪ 空闲 · pi - session - demo");
 
-    h.events.emit(LOOP_ACTIVITY_EVENT, { active: true });
+    h.events.emit(TERMINAL_BACKGROUND_ACTIVITY_EVENT, { source: "scheduler", active: true });
     expect(h.setTitle).toHaveBeenLastCalledWith("🟣 等待中 · pi - session - demo");
 
     h.service.onAgentStart();
@@ -41,8 +41,20 @@ describe("terminal status background activity", () => {
 
     h.service.onAgentStart();
     expect(h.setTitle).toHaveBeenLastCalledWith("🟣 等待中 · pi - session - demo");
-    h.events.emit(LOOP_ACTIVITY_EVENT, { active: false });
+    h.events.emit(TERMINAL_BACKGROUND_ACTIVITY_EVENT, { source: "scheduler", active: false });
     expect(h.setTitle).toHaveBeenLastCalledWith("🔵 工作中 · pi - session - demo");
+  });
+
+  it("keeps background status until every extension source is inactive", () => {
+    const h = harness();
+
+    h.events.emit(TERMINAL_BACKGROUND_ACTIVITY_EVENT, { source: "scheduler", active: true });
+    h.events.emit(TERMINAL_BACKGROUND_ACTIVITY_EVENT, { source: "watcher", active: true });
+    h.events.emit(TERMINAL_BACKGROUND_ACTIVITY_EVENT, { source: "scheduler", active: false });
+    expect(h.setTitle).toHaveBeenLastCalledWith("🟣 等待中 · pi - session - demo");
+
+    h.events.emit(TERMINAL_BACKGROUND_ACTIVITY_EVENT, { source: "watcher", active: false });
+    expect(h.setTitle).toHaveBeenLastCalledWith("⚪ 空闲 · pi - session - demo");
   });
 
   it("tracks async and foreground subagent launches without counting status calls", () => {
@@ -80,7 +92,7 @@ describe("terminal status background activity", () => {
 
   it("keeps needs-input above background work and unsubscribes on dispose", async () => {
     const h = harness();
-    h.events.emit(LOOP_ACTIVITY_EVENT, { active: true });
+    h.events.emit(TERMINAL_BACKGROUND_ACTIVITY_EVENT, { source: "scheduler", active: true });
 
     await withTerminalNeedsInput(h.events, async () => {
       expect(h.setTitle).toHaveBeenLastCalledWith("🟠 需要输入 · pi - session - demo");
