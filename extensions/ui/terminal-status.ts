@@ -1,16 +1,26 @@
-import type { AgentEndEvent, EventBus } from "@earendil-works/pi-coding-agent";
+import type {
+  AgentEndEvent,
+  EventBus,
+  ToolExecutionEndEvent,
+  ToolExecutionStartEvent,
+} from "@earendil-works/pi-coding-agent";
 import { basename } from "node:path";
+import { LOOP_ACTIVITY_EVENT, isLoopActivityEvent } from "../loop/events.js";
 import type { UiContext } from "./types.js";
 
 const NEEDS_INPUT_EVENT = "my-pi-package:terminal-status:needs-input";
 
-export type TerminalStatus = "idle" | "working" | "waiting" | "needs-input" | "error";
-type BaseTerminalStatus = Exclude<TerminalStatus, "needs-input">;
+export type TerminalStatus = "idle" | "working" | "waiting" | "background" | "needs-input" | "error";
+type BaseTerminalStatus = Exclude<TerminalStatus, "background" | "needs-input">;
+
+const SUBAGENT_ASYNC_STARTED_EVENT = "subagent:async-started";
+const SUBAGENT_ASYNC_COMPLETE_EVENT = "subagent:async-complete";
 
 const STATUS_LABELS: Record<TerminalStatus, string> = {
   idle: "⚪ 空闲",
   working: "🔵 工作中",
   waiting: "🟢 等待回复",
+  background: "🟣 等待中",
   "needs-input": "🟠 需要输入",
   error: "🔴 错误",
 };
@@ -29,6 +39,20 @@ function isNeedsInputEvent(value: unknown): value is NeedsInputEvent {
   return typeof (value as { active?: unknown }).active === "boolean";
 }
 
+function subagentRunId(value: unknown): string | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const event = value as { id?: unknown; runId?: unknown };
+  if (typeof event.runId === "string" && event.runId) return event.runId;
+  return typeof event.id === "string" && event.id ? event.id : undefined;
+}
+
+function isSubagentLaunch(event: ToolExecutionStartEvent): boolean {
+  if (event.toolName !== "subagent" || !event.args || typeof event.args !== "object") return false;
+  const args = event.args as Record<string, unknown>;
+  if (typeof args.action === "string") return false;
+  return "agent" in args || "tasks" in args || "chain" in args;
+}
+
 export async function withTerminalNeedsInput<T>(
   events: EventBus,
   operation: () => Promise<T>,
@@ -45,7 +69,8 @@ export class TerminalStatusService {
   private baseStatus: BaseTerminalStatus = "idle";
   private needsInputDepth = 0;
   private lastRunFailed = false;
-  private unsubscribeNeedsInput?: () => void;
+  private readonly backgroundWork = new Set<string>();
+  private readonly unsubscribers: Array<() => void> = [];
   private disposed = false;
 
   constructor(
@@ -54,16 +79,30 @@ export class TerminalStatusService {
   ) {}
 
   install(): void {
-    if (this.disposed || this.unsubscribeNeedsInput) return;
-    this.unsubscribeNeedsInput = this.dependencies.events.on(NEEDS_INPUT_EVENT, (event) => {
-      if (!isNeedsInputEvent(event)) return;
-      if (event.active) {
-        this.needsInputDepth += 1;
-      } else {
-        this.needsInputDepth = Math.max(0, this.needsInputDepth - 1);
-      }
-      this.render();
-    });
+    if (this.disposed || this.unsubscribers.length > 0) return;
+    this.unsubscribers.push(
+      this.dependencies.events.on(NEEDS_INPUT_EVENT, (event) => {
+        if (!isNeedsInputEvent(event)) return;
+        if (event.active) {
+          this.needsInputDepth += 1;
+        } else {
+          this.needsInputDepth = Math.max(0, this.needsInputDepth - 1);
+        }
+        this.render();
+      }),
+      this.dependencies.events.on(LOOP_ACTIVITY_EVENT, (event) => {
+        if (!isLoopActivityEvent(event)) return;
+        this.setBackgroundWork("loop", event.active);
+      }),
+      this.dependencies.events.on(SUBAGENT_ASYNC_STARTED_EVENT, (event) => {
+        const id = subagentRunId(event);
+        if (id) this.setBackgroundWork(`subagent:async:${id}`, true);
+      }),
+      this.dependencies.events.on(SUBAGENT_ASYNC_COMPLETE_EVENT, (event) => {
+        const id = subagentRunId(event);
+        if (id) this.setBackgroundWork(`subagent:async:${id}`, false);
+      }),
+    );
     this.render();
   }
 
@@ -83,6 +122,14 @@ export class TerminalStatusService {
     this.setBaseStatus(this.lastRunFailed ? "error" : "waiting");
   }
 
+  onToolExecutionStart(event: ToolExecutionStartEvent): void {
+    if (isSubagentLaunch(event)) this.setBackgroundWork(`subagent:tool:${event.toolCallId}`, true);
+  }
+
+  onToolExecutionEnd(event: ToolExecutionEndEvent): void {
+    this.setBackgroundWork(`subagent:tool:${event.toolCallId}`, false);
+  }
+
   acknowledge(): void {
     this.lastRunFailed = false;
     this.setBaseStatus("idle");
@@ -95,9 +142,9 @@ export class TerminalStatusService {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
-    this.unsubscribeNeedsInput?.();
-    this.unsubscribeNeedsInput = undefined;
+    for (const unsubscribe of this.unsubscribers.splice(0)) unsubscribe();
     this.needsInputDepth = 0;
+    this.backgroundWork.clear();
     this.ctx.ui.setTitle(this.defaultTitle());
   }
 
@@ -106,9 +153,21 @@ export class TerminalStatusService {
     this.render();
   }
 
+  private setBackgroundWork(key: string, active: boolean): void {
+    if (active) this.backgroundWork.add(key);
+    else this.backgroundWork.delete(key);
+    this.render();
+  }
+
   private render(): void {
     if (this.disposed) return;
-    const status: TerminalStatus = this.needsInputDepth > 0 ? "needs-input" : this.baseStatus;
+    const status: TerminalStatus = this.needsInputDepth > 0
+      ? "needs-input"
+      : this.baseStatus === "error"
+        ? "error"
+        : this.backgroundWork.size > 0
+          ? "background"
+          : this.baseStatus;
     this.ctx.ui.setTitle(`${STATUS_LABELS[status]} · ${this.defaultTitle()}`);
   }
 

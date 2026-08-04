@@ -1,6 +1,6 @@
 # my-pi-package
 
-Private personal [Pi](https://pi.dev) package for reproducing this setup on another machine. It bundles an always-on TUI, a discussion-only Chat Mode, progressive memory, OpenAI usage, three prompt templates, the selectable `slop` theme, and an installer-managed global voice-input preference. It contains no skills, credentials, sessions, memory data, or other machine state.
+Private personal [Pi](https://pi.dev) package for reproducing this setup on another machine. It bundles an always-on TUI, a session-scoped Loop scheduler, a discussion-only Chat Mode, progressive memory, OpenAI usage, three prompt templates, the selectable `slop` theme, and an installer-managed global voice-input preference. It contains no skills, credentials, sessions, memory data, or other machine state.
 
 ## Install
 
@@ -49,6 +49,17 @@ Optional machine-local overrides:
 - `~/.pi/agent/configs/ui-footer.json`
 
 The package defaults remain authoritative when those files are absent or invalid.
+
+### Loop
+
+`extensions/loop/` provides one in-memory repeating prompt for the current interactive session:
+
+- `/loop 5m check the deploy` starts a Loop after validating a `m`, `h`, or `d` interval from `1m` through `7d`;
+- `/loop` or `/loop status` shows its prompt, interval, creation time, and next run;
+- `/loop stop` cancels future runs without aborting work already in progress;
+- a tick is skipped when the main agent is busy, and all Loop state is discarded on reload or session shutdown.
+
+The terminal-tab title shows `🟣 等待中` whenever a Loop is active or a foreground/background `pi-subagents` run is detected. Input-required and error states retain higher priority.
 
 ### Chat Mode
 

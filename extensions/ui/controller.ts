@@ -1,4 +1,9 @@
-import type { AgentEndEvent, ExtensionUIContext } from "@earendil-works/pi-coding-agent";
+import type {
+  AgentEndEvent,
+  ExtensionUIContext,
+  ToolExecutionEndEvent,
+  ToolExecutionStartEvent,
+} from "@earendil-works/pi-coding-agent";
 import { createEditorFeature, type EditorFeature } from "./chat-input.js";
 import { createFooterService } from "./footer/index.js";
 import { SpinnerService } from "./spinner.js";
@@ -160,6 +165,12 @@ export class UiController {
   }
   onAgentSettled(): void { if (this.active) this.terminalStatus?.onAgentSettled(); }
   onSessionInfoChanged(): void { if (this.active) this.terminalStatus?.refreshTitle(); }
+  onToolExecutionStart(event: ToolExecutionStartEvent): void {
+    if (this.active) this.terminalStatus?.onToolExecutionStart(event);
+  }
+  onToolExecutionEnd(event: ToolExecutionEndEvent): void {
+    if (this.active) this.terminalStatus?.onToolExecutionEnd(event);
+  }
   onToolResult(event: unknown): void { if (this.active) this.features?.onToolResult?.(event); }
   onUserBash(event: unknown): void { if (this.active) this.features?.onUserBash?.(event); }
 }

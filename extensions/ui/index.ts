@@ -17,6 +17,8 @@ export function setupUi(pi: ExtensionAPI): UiController {
   pi.on("agent_end", (event) => { controller.onAgentEnd(event); });
   pi.on("agent_settled", () => { controller.onAgentSettled(); });
   pi.on("session_info_changed", () => { controller.onSessionInfoChanged(); });
+  pi.on("tool_execution_start", (event) => { controller.onToolExecutionStart(event); });
+  pi.on("tool_execution_end", (event) => { controller.onToolExecutionEnd(event); });
   pi.on("tool_result", (event) => { controller.onToolResult(event); });
   pi.on("user_bash", (event) => { controller.onUserBash(event); });
   pi.on("session_shutdown", () => { controller.sessionShutdown(); });
