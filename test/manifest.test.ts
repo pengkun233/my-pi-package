@@ -23,7 +23,7 @@ const skills = [
 ];
 
 describe("package boundary", () => {
-  it("publishes the agreed extensions, skills, prompts, and themes", () => {
+  it("publishes the agreed extensions, skills, prompts, and theme", () => {
     expect(pkg.private).toBe(true);
     expect(pkg.pi.extensions).toEqual([
       "./extensions/ui/index.ts",

@@ -1,6 +1,6 @@
 # my-pi-package
 
-Private personal [Pi](https://pi.dev) package for reproducing this setup on another machine. It bundles an always-on TUI, a session-scoped Loop scheduler, a discussion-only Chat Mode, progressive memory, OpenAI usage, two user-invoked skills, three prompt templates, six selectable themes, and an installer-managed global voice-input preference. It contains no credentials, sessions, memory data, or other machine state.
+Private personal [Pi](https://pi.dev) package for reproducing this setup on another machine. It bundles an always-on TUI, a session-scoped Loop scheduler, a discussion-only Chat Mode, progressive memory, OpenAI usage, two user-invoked skills, three prompt templates, nine selectable themes, and an installer-managed global voice-input preference. It contains no credentials, sessions, memory data, or other machine state.
 
 ## Install
 
@@ -113,6 +113,9 @@ Bundled themes:
 - `gruvbox-dark`
 - `kanagawa-wave`
 - `dracula`
+- `ayu-dark`
+- `ayu-mirage`
+- `ayu-light`
 
 They are ordinary package themes discovered from `themes/`. `install.sh` selects `slop` globally; users can select any bundled theme later through `/settings`.
 
