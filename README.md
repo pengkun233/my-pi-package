@@ -1,6 +1,6 @@
 # my-pi-package
 
-Private personal [Pi](https://pi.dev) package for reproducing this setup on another machine. It bundles an always-on TUI, a session-scoped Loop scheduler, a discussion-only Chat Mode, progressive memory, OpenAI usage, three prompt templates, the selectable `slop` theme, and an installer-managed global voice-input preference. It contains no skills, credentials, sessions, memory data, or other machine state.
+Private personal [Pi](https://pi.dev) package for reproducing this setup on another machine. It bundles an always-on TUI, a session-scoped Loop scheduler, a discussion-only Chat Mode, progressive memory, OpenAI usage, the user-invoked `wait-what-cn` skill, three prompt templates, the selectable `slop` theme, and an installer-managed global voice-input preference. It contains no credentials, sessions, memory data, or other machine state.
 
 ## Install
 
@@ -30,6 +30,10 @@ The installer:
 Re-running it is safe. Run it again whenever `config/packages.json` changes. Package installation is not transactional: if a network install fails midway, fix the problem and rerun the script. Restart Pi after installation.
 
 ## Bundled resources
+
+### Skill
+
+`/skill:wait-what-cn` re-pitches the previous response in concise technical Chinese, adds missing context, and preserves the current project's domain language. It is user-invoked only.
 
 ### UI
 

@@ -23,7 +23,7 @@ const skills = [
 ];
 
 describe("package boundary", () => {
-  it("publishes the agreed extensions, prompts, and theme but no skills", () => {
+  it("publishes the agreed extensions, skill, prompts, and theme", () => {
     expect(pkg.private).toBe(true);
     expect(pkg.pi.extensions).toEqual([
       "./extensions/ui/index.ts",
@@ -32,9 +32,9 @@ describe("package boundary", () => {
       "./extensions/memory/index.ts",
       "./extensions/openai-usage.ts",
     ]);
+    expect(pkg.pi.skills).toEqual(["./skills"]);
     expect(pkg.pi.prompts).toEqual(["./prompts"]);
     expect(pkg.pi.themes).toEqual(["./themes"]);
-    expect(pkg.pi).not.toHaveProperty("skills");
   });
 
   it("uses Pi-supported prompt argument placeholders", () => {
