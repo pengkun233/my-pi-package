@@ -1,6 +1,6 @@
 # my-pi-package
 
-Private personal [Pi](https://pi.dev) package for reproducing this setup on another machine. It bundles an always-on TUI, a session-scoped Loop scheduler, a discussion-only Chat Mode, progressive memory, OpenAI usage, the user-invoked `wait-what-cn` skill, four prompt templates, the selectable `slop` theme, and an installer-managed global voice-input preference. It contains no credentials, sessions, memory data, or other machine state.
+Private personal [Pi](https://pi.dev) package for reproducing this setup on another machine. It bundles an always-on TUI, a session-scoped Loop scheduler, a discussion-only Chat Mode, progressive memory, OpenAI usage, two user-invoked skills, three prompt templates, six selectable themes, and an installer-managed global voice-input preference. It contains no credentials, sessions, memory data, or other machine state.
 
 ## Install
 
@@ -31,9 +31,12 @@ Re-running it is safe. Run it again whenever `config/packages.json` changes. Pac
 
 ## Bundled resources
 
-### Skill
+### Skills
 
-`/skill:wait-what-cn` re-pitches the previous response in concise technical Chinese, adds missing context, and preserves the current project's domain language. It is user-invoked only.
+Both bundled skills are user-invoked only:
+
+- `/skill:wait-what-cn` re-pitches the previous response in concise technical Chinese, adds missing context, and preserves the current project's domain language.
+- `/skill:tidy-memory` audits current project memory and repository-owned `CLAUDE.md`, `AGENTS.md`, and `README.md` files as one knowledge set. It merges duplicate knowledge, removes stale material, and corrects claims against repository evidence.
 
 ### UI
 
@@ -101,9 +104,17 @@ Prompt templates:
 - `/Get-Shit-Done`
 - `/Neat-Freak`
 - `/aye`
-- `/tidy-memory`
 
-`slop` is an ordinary package theme. `install.sh` selects it globally; users can select another theme later.
+Bundled themes:
+
+- `slop` (the installer-selected default)
+- `flexoki-dark`
+- `everforest-dark-hard`
+- `gruvbox-dark`
+- `kanagawa-wave`
+- `dracula`
+
+They are ordinary package themes discovered from `themes/`. `install.sh` selects `slop` globally; users can select any bundled theme later through `/settings`.
 
 ## Updates
 

@@ -23,7 +23,7 @@ const skills = [
 ];
 
 describe("package boundary", () => {
-  it("publishes the agreed extensions, skill, prompts, and theme", () => {
+  it("publishes the agreed extensions, skills, prompts, and themes", () => {
     expect(pkg.private).toBe(true);
     expect(pkg.pi.extensions).toEqual([
       "./extensions/ui/index.ts",
@@ -38,7 +38,7 @@ describe("package boundary", () => {
   });
 
   it("uses Pi-supported prompt argument placeholders", () => {
-    for (const name of ["Get-Shit-Done.md", "Neat-Freak.md", "aye.md", "tidy-memory.md"]) {
+    for (const name of ["Get-Shit-Done.md", "Neat-Freak.md", "aye.md"]) {
       const prompt = readFileSync(join(process.cwd(), "prompts", name), "utf8");
       expect(prompt).not.toContain("${ARGUMENTS}");
     }
