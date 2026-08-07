@@ -343,6 +343,7 @@ warn_path "$AGENT_DIR/extensions/memory"
 warn_path "$AGENT_DIR/extensions/openai-usage.ts"
 warn_path "$AGENT_DIR/prompts/Get-Shit-Done.md"
 warn_path "$AGENT_DIR/prompts/Neat-Freak.md"
+warn_path "$AGENT_DIR/prompts/aye.md"
 warn_path "$AGENT_DIR/prompts/tidy-memory.md"
 
 for skill in \

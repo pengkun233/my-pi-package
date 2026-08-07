@@ -1,6 +1,6 @@
 # my-pi-package
 
-Private personal [Pi](https://pi.dev) package for reproducing this setup on another machine. It bundles an always-on TUI, a session-scoped Loop scheduler, a discussion-only Chat Mode, progressive memory, OpenAI usage, the user-invoked `wait-what-cn` skill, three prompt templates, the selectable `slop` theme, and an installer-managed global voice-input preference. It contains no credentials, sessions, memory data, or other machine state.
+Private personal [Pi](https://pi.dev) package for reproducing this setup on another machine. It bundles an always-on TUI, a session-scoped Loop scheduler, a discussion-only Chat Mode, progressive memory, OpenAI usage, the user-invoked `wait-what-cn` skill, four prompt templates, the selectable `slop` theme, and an installer-managed global voice-input preference. It contains no credentials, sessions, memory data, or other machine state.
 
 ## Install
 
@@ -100,6 +100,7 @@ Prompt templates:
 
 - `/Get-Shit-Done`
 - `/Neat-Freak`
+- `/aye`
 - `/tidy-memory`
 
 `slop` is an ordinary package theme. `install.sh` selects it globally; users can select another theme later.

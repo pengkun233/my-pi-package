@@ -38,10 +38,11 @@ describe("package boundary", () => {
   });
 
   it("uses Pi-supported prompt argument placeholders", () => {
-    for (const name of ["Get-Shit-Done.md", "Neat-Freak.md", "tidy-memory.md"]) {
+    for (const name of ["Get-Shit-Done.md", "Neat-Freak.md", "aye.md", "tidy-memory.md"]) {
       const prompt = readFileSync(join(process.cwd(), "prompts", name), "utf8");
       expect(prompt).not.toContain("${ARGUMENTS}");
     }
+    expect(readFileSync(join(process.cwd(), "prompts", "aye.md"), "utf8")).toBe("全部同意\n");
   });
 
   it("keeps the exact external package and skill-filter policy", () => {
