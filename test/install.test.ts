@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import policy from "../config/packages.json";
 
 const globalAgentsPolicy = readFileSync(join(process.cwd(), "config", "global-agents.md"), "utf8").trim();
+const herdrConfig = readFileSync(join(process.cwd(), "config", "herdr", "config.toml"), "utf8");
 const globalAgentsStart = "<!-- my-pi-package:global-agents:start -->";
 const globalAgentsEnd = "<!-- my-pi-package:global-agents:end -->";
 const roots: string[] = [];
@@ -86,6 +87,8 @@ describe("installer", () => {
     expect(second.status, second.stderr).toBe(0);
     expect(readFileSync(join(f.agent, "settings.json"), "utf8")).toBe(firstSettings);
     expect(readFileSync(join(f.agent, "AGENTS.md"), "utf8")).toBe(firstAgents);
+    expect(readFileSync(join(f.home, ".config", "herdr", "config.toml"), "utf8")).toBe(herdrConfig);
+    expect(existsSync(join(f.home, ".config", "herdr", "config.toml.backup-before-my-pi-package"))).toBe(false);
 
     expect(firstAgents).toContain("# Existing global rule\n\nKeep this instruction.");
     expect(firstAgents).toContain(`${globalAgentsStart}\n${globalAgentsPolicy}\n${globalAgentsEnd}`);
@@ -115,6 +118,19 @@ describe("installer", () => {
     expect(first.stderr).toContain("legacy duplicate");
     expect(first.stderr).toContain(join(f.agent, "extensions", "memory"));
     expect(first.stderr).toContain(join(f.agent, "extensions", "openai-usage.ts"));
+  });
+
+  it("backs up a changed Herdr config before replacing it", () => {
+    const f = fixture();
+    const target = join(f.root, "custom-herdr.toml");
+    executable(join(f.bin, "rtk"), "#!/bin/sh\nexit 0\n");
+    writeFileSync(target, "# previous Herdr config\n");
+
+    const result = runInstall(f, { PACKAGE_HERDR_CONFIG_TARGET: target });
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(readFileSync(target, "utf8")).toBe(herdrConfig);
+    expect(readFileSync(`${target}.backup-before-my-pi-package`, "utf8")).toBe("# previous Herdr config\n");
   });
 
   it("updates its managed AGENTS block without changing surrounding whitespace", () => {

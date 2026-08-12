@@ -4,6 +4,8 @@ set -euo pipefail
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
 POLICY_FILE="${PACKAGE_POLICY_FILE:-$SCRIPT_DIR/config/packages.json}"
 GLOBAL_AGENTS_POLICY_FILE="${PACKAGE_GLOBAL_AGENTS_FILE:-$SCRIPT_DIR/config/global-agents.md}"
+HERDR_CONFIG_SOURCE="${PACKAGE_HERDR_CONFIG_FILE:-$SCRIPT_DIR/config/herdr/config.toml}"
+HERDR_CONFIG_TARGET="${PACKAGE_HERDR_CONFIG_TARGET:-$HOME/.config/herdr/config.toml}"
 AGENT_DIR="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}"
 SETTINGS_FILE="$AGENT_DIR/settings.json"
 GLOBAL_AGENTS_FILE="$AGENT_DIR/AGENTS.md"
@@ -27,6 +29,7 @@ else
 fi
 [[ -f "$POLICY_FILE" ]] || fail "missing package policy"
 [[ -f "$GLOBAL_AGENTS_POLICY_FILE" ]] || fail "missing global AGENTS policy"
+[[ -f "$HERDR_CONFIG_SOURCE" ]] || fail "missing Herdr config"
 
 POLICY_SOURCES=$(node -e '
   const fs = require("node:fs");
@@ -330,6 +333,34 @@ try {
   }
 } finally {
   fs.rmSync(lockPath, { recursive: true, force: true });
+}
+NODE
+
+HERDR_CONFIG_SOURCE="$HERDR_CONFIG_SOURCE" HERDR_CONFIG_TARGET="$HERDR_CONFIG_TARGET" node <<'NODE'
+const fs = require("node:fs");
+const path = require("node:path");
+
+const sourcePath = process.env.HERDR_CONFIG_SOURCE;
+const configuredTarget = process.env.HERDR_CONFIG_TARGET;
+if (!sourcePath || !configuredTarget) throw new Error("Invalid Herdr config paths");
+
+const content = fs.readFileSync(sourcePath);
+fs.mkdirSync(path.dirname(configuredTarget), { recursive: true, mode: 0o700 });
+
+let target = configuredTarget;
+try {
+  if (fs.lstatSync(configuredTarget).isSymbolicLink()) target = fs.realpathSync(configuredTarget);
+} catch (error) {
+  if (error.code !== "ENOENT") throw error;
+}
+
+if (!fs.existsSync(target) || !fs.readFileSync(target).equals(content)) {
+  const mode = fs.existsSync(target) ? fs.statSync(target).mode & 0o777 : fs.statSync(sourcePath).mode & 0o777;
+  if (fs.existsSync(target)) fs.copyFileSync(target, `${target}.backup-before-my-pi-package`);
+  const temporary = `${target}.${process.pid}.tmp`;
+  fs.writeFileSync(temporary, content, { mode });
+  fs.chmodSync(temporary, mode);
+  fs.renameSync(temporary, target);
 }
 NODE
 

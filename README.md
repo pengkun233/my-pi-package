@@ -1,6 +1,6 @@
 # my-pi-package
 
-Private personal [Pi](https://pi.dev) package for reproducing this setup on another machine. It bundles an always-on TUI, a session-scoped Loop scheduler, a discussion-only Chat Mode, progressive memory, OpenAI usage, two user-invoked skills, three prompt templates, eleven selectable themes, and an installer-managed global voice-input preference. It contains no credentials, sessions, memory data, or other machine state.
+Private personal [Pi](https://pi.dev) package for reproducing this setup on another machine. It bundles an always-on TUI, a session-scoped Loop scheduler, a discussion-only Chat Mode, progressive memory, OpenAI usage, two user-invoked skills, three prompt templates, eleven selectable themes, an installer-managed global voice-input preference, and the preferred Herdr configuration. It contains no credentials, sessions, memory data, or other machine state.
 
 ## Install
 
@@ -24,6 +24,7 @@ The installer:
 - normalizes Plannotator to an ordinary enabled package entry;
 - sets the global Pi theme to `slop` while preserving unrelated settings;
 - installs the voice-input policy as a managed block in `~/.pi/agent/AGENTS.md`, preserving unrelated global instructions;
+- installs `config/herdr/config.toml` to `~/.config/herdr/config.toml`, keeping the previous file as `config.toml.backup-before-my-pi-package` when its contents change;
 - installs the RTK executable with the official Linux installer only when it is missing;
 - warns about legacy duplicate resources but never deletes or moves them.
 
@@ -96,6 +97,12 @@ All session modes default to normal mode, though `/chat` can enable Chat Mode wh
 `config/global-agents.md` is installed into a clearly marked, package-managed block in `~/.pi/agent/AGENTS.md`. This makes the voice-input tolerance rules active by default in every Pi session. Existing instructions outside that block are preserved, and rerunning `install.sh` updates the managed block idempotently.
 
 Pi packages do not natively expose `AGENTS.md` as a manifest resource, so this policy is applied by the installer rather than the `pi.prompts` manifest. After changing or updating `config/global-agents.md`, rerun `install.sh`, then run `/reload` or restart Pi. `pi update --extensions` alone does not refresh this managed block.
+
+### Herdr configuration
+
+`config/herdr/config.toml` is the reproducible Herdr preference file installed by `install.sh`. It includes the Dracula theme, direct workspace/tab/agent navigation keys, the `prefix+a` Pi-agent launcher command, expanded agent-row formatting, and disabled persisted pane history. The launcher binding expects `~/.local/bin/herdr-new-pi` to exist on the target machine; that machine-local helper is not bundled.
+
+Set `PACKAGE_HERDR_CONFIG_TARGET` when running the installer to write the config somewhere other than `~/.config/herdr/config.toml`.
 
 ### Prompts and theme
 
