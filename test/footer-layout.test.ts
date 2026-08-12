@@ -10,6 +10,14 @@ import {
 import { DEFAULT_CONTEXT_BAR_CONFIG, DEFAULT_FOOTER_CONFIG, normalizeConfig, normalizeSegments } from "../extensions/ui/footer/config.js";
 
 const theme = { fg: (_token: string, text: string) => text } as any;
+const rgbTheme = (colors: Record<string, string>) => ({
+  fg: (token: string, text: string) => {
+    const hex = colors[token];
+    if (!hex) return text;
+    const [r, g, b] = hex.match(/[0-9a-f]{2}/gi)!.map((channel) => Number.parseInt(channel, 16));
+    return `\x1b[38;2;${r};${g};${b}m${text}\x1b[0m`;
+  },
+}) as any;
 const stripAnsi = (value: string) => value.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "");
 const context = { theme, cwd: "/tmp/work", inputTokens: 0, outputTokens: 0, cost: 0 } as any;
 
@@ -47,6 +55,31 @@ describe("footer layout", () => {
   it("normalizes context bar configuration to safe bounds", () => {
     const config = normalizeConfig({ contextBar: { barWidth: 200, gradientMidPoint: -1, mode: "text", responsive: false } });
     expect(config.contextBar).toMatchObject({ barWidth: 32, gradientMidPoint: 0, mode: "text", responsive: false });
+  });
+
+  it("derives the default context bar from active theme tokens", () => {
+    expect(DEFAULT_CONTEXT_BAR_CONFIG).toMatchObject({
+      unfilledColor: "borderMuted",
+      gradientStart: "borderAccent",
+      gradientMid: "accent",
+      gradientEnd: "dim",
+    });
+    const base = {
+      ...context,
+      contextPercent: 50,
+      terminalWidth: 120,
+    };
+    const dracula = renderSegment("context", {
+      ...base,
+      theme: rgbTheme({ borderAccent: "#bd93f9", accent: "#bd93f9", dim: "#6272a4", borderMuted: "#44475a", muted: "#9ca3c4" }),
+    });
+    const ayu = renderSegment("context", {
+      ...base,
+      theme: rgbTheme({ borderAccent: "#e6b450", accent: "#e6b450", dim: "#515868", borderMuted: "#253340", muted: "#707a8c" }),
+    });
+    expect(dracula).toContain("\x1b[38;2;189;147;249m");
+    expect(ayu).toContain("\x1b[38;2;230;180;80m");
+    expect(dracula).not.toBe(ayu);
   });
 
   it("renders uppercase thinking levels with level-specific theme colors", () => {

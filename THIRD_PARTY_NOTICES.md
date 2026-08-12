@@ -18,9 +18,9 @@ The MIT license copied in `LICENSE` and this notice are retained for the adapted
 
 Upstream package: `@victor-software-house/pi-curated-themes`  
 Upstream declared license: MIT  
-Palette source: [iTerm2-Color-Schemes](https://github.com/mbadolato/iTerm2-Color-Schemes), MIT
+Initial palette source: [iTerm2-Color-Schemes](https://github.com/mbadolato/iTerm2-Color-Schemes), MIT
 
-The local copies only update the Pi theme schema URL to the current `earendil-works/pi` location.
+The local themes retain those source palettes but replace the generator's shared single-accent mapping with theme-specific Pi semantic roles. The corrected mappings follow the canonical upstream projects: [Flexoki](https://github.com/kepano/flexoki), [Everforest](https://github.com/sainnhe/everforest), [Gruvbox](https://github.com/morhetz/gruvbox), [Kanagawa](https://github.com/rebelot/kanagawa.nvim), and [Vesper](https://github.com/raunofreiberg/vesper), all MIT licensed. Their schema URLs are updated to the current `earendil-works/pi` location.
 
 ## Poimandres Pi theme
 

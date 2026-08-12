@@ -49,9 +49,10 @@ function mix(from: Rgb, to: Rgb, amount: number): Rgb {
 }
 
 function gradientColor(theme: FooterLayoutContext["theme"], config: ContextBarConfig, index: number, width: number): string {
-  const start = colorToRgb(theme, config.gradientStart) ?? { r: 242, g: 147, b: 115 };
-  const middle = colorToRgb(theme, config.gradientMid) ?? { r: 214, g: 120, b: 88 };
-  const end = colorToRgb(theme, config.gradientEnd) ?? { r: 174, g: 79, b: 47 };
+  const start = colorToRgb(theme, config.gradientStart);
+  const middle = colorToRgb(theme, config.gradientMid);
+  const end = colorToRgb(theme, config.gradientEnd);
+  if (!start || !middle || !end) return config.gradientMid;
   const position = index / Math.max(1, width - 1);
   const midpoint = config.gradientMidPoint;
   if (midpoint <= 0) {
