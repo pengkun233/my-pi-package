@@ -1,6 +1,6 @@
 # my-pi-package
 
-Private personal [Pi](https://pi.dev) package for reproducing this setup on another machine. It bundles an always-on TUI, a session-scoped Loop scheduler, a discussion-only Chat Mode, progressive memory, OpenAI usage, two user-invoked skills, three prompt templates, eleven selectable themes, an installer-managed global voice-input preference, and the preferred Herdr configuration. It contains no credentials, sessions, memory data, or other machine state.
+Private personal [Pi](https://pi.dev) package for reproducing this setup on another machine. It bundles an always-on TUI, a session-scoped Loop scheduler with a model-invoked skill, a discussion-only Chat Mode, progressive memory, OpenAI usage, two user-invoked skills, three prompt templates, eleven selectable themes, an installer-managed global voice-input preference, and the preferred Herdr configuration. It contains no credentials, sessions, memory data, or other machine state.
 
 ## Install
 
@@ -34,7 +34,9 @@ Re-running it is safe. Run it again whenever `config/packages.json` changes. Pac
 
 ### Skills
 
-Both bundled skills are user-invoked only:
+The model-invoked `loop` skill translates natural-language scheduling, status, and cancellation requests into the Loop tools. `/skill:loop` loads it explicitly when needed.
+
+Two other bundled skills are user-invoked only:
 
 - `/skill:wait-what-cn` re-pitches the previous response in concise technical Chinese, adds missing context, and preserves the current project's domain language.
 - `/skill:tidy-memory` audits current project memory and repository-owned `CLAUDE.md`, `AGENTS.md`, and `README.md` files as one knowledge set. It merges duplicate knowledge, removes stale material, and corrects claims against repository evidence.
@@ -62,12 +64,15 @@ The package defaults remain authoritative when those files are absent or invalid
 
 `extensions/loop/` provides one in-memory repeating prompt for the current interactive session:
 
-- `/loop 5m check the deploy` starts a Loop after validating a `m`, `h`, or `d` interval from `1m` through `7d`;
-- `/loop` or `/loop status` shows its prompt, interval, creation time, and next run;
-- `/loop stop` cancels future runs without aborting work already in progress;
+- natural-language requests are the primary interface, for example: “Check the deploy every 5 minutes and stop when it succeeds” or “Stop the current Loop”;
+- the `loop` skill creates a self-contained check with an observable completion condition, and the agent calls `loop_stop` as soon as that condition is met;
+- requests may optionally limit the Loop by successful check count or elapsed time;
+- `/loop 5m check the deploy`, `/loop status`, and `/loop stop` remain available as the original direct interface;
+- status shows the prompt, interval, dispatched check count, creation time, next run, and configured bounds;
 - the footer shows a compact text status such as `↻ 5m · 09:30`; next-day runs include the date, for example `↻ 5m · 08-05 09:30`;
-- all displayed creation and next-run times use Beijing time (`UTC+8`), independent of the machine's local timezone;
-- a tick is skipped when the main agent is busy, and all Loop state and footer status are discarded on reload or session shutdown.
+- all displayed creation, next-run, and expiry times use Beijing time (`UTC+8`), independent of the machine's local timezone;
+- a tick is skipped when the main agent is busy, and all Loop state and footer status are discarded on reload or session shutdown;
+- stopping cancels future runs without aborting work already in progress.
 
 Loop publishes background activity through the terminal-status plugin's generic event contract. The terminal-tab title shows `🟣 等待中` whenever a Loop is active or a foreground/background `pi-subagents` run is detected. Input-required and error states retain higher priority.
 

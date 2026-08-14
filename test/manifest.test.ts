@@ -37,6 +37,16 @@ describe("package boundary", () => {
     expect(pkg.pi.themes).toEqual(["./themes"]);
   });
 
+  it("ships Loop as a model-invoked natural-language skill", () => {
+    const skill = readFileSync(join(process.cwd(), "skills", "loop", "SKILL.md"), "utf8");
+    expect(skill).toContain("name: loop");
+    expect(skill).toContain("description:");
+    expect(skill).not.toContain("disable-model-invocation");
+    for (const tool of ["loop_start", "loop_status", "loop_stop"]) {
+      expect(skill).toContain(`\`${tool}\``);
+    }
+  });
+
   it("uses Pi-supported prompt argument placeholders", () => {
     for (const name of ["Get-Shit-Done.md", "Neat-Freak.md", "aye.md"]) {
       const prompt = readFileSync(join(process.cwd(), "prompts", name), "utf8");

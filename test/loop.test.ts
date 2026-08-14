@@ -14,6 +14,7 @@ afterEach(() => {
 function harness() {
   const handlers = new Map<string, Function>();
   const commands = new Map<string, any>();
+  const tools = new Map<string, any>();
   const notify = vi.fn();
   const setStatus = vi.fn();
   const sendUserMessage = vi.fn();
@@ -22,6 +23,7 @@ function harness() {
   const pi: any = {
     on: (name: string, handler: Function) => handlers.set(name, handler),
     registerCommand: (name: string, options: any) => commands.set(name, options),
+    registerTool: (options: any) => tools.set(options.name, options),
     sendUserMessage,
     events: { emit, on: vi.fn() },
   };
@@ -35,6 +37,7 @@ function harness() {
   return {
     handlers,
     commands,
+    tools,
     ctx,
     notify,
     setStatus,
@@ -121,6 +124,114 @@ describe("Loop extension", () => {
       active: false,
     });
     expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("starts, inspects, and stops through model-callable tools", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-04T04:00:00Z"));
+    const h = harness();
+    h.handlers.get("session_start")!({ reason: "startup" }, h.ctx);
+    const prompt = "Check the deploy. When it succeeds, call loop_stop; otherwise report its state.";
+
+    const started = await h.tools.get("loop_start").execute(
+      "start",
+      { intervalMinutes: 60, prompt, maxRuns: 3, timeoutMinutes: 180 },
+      undefined,
+      undefined,
+      h.ctx,
+    );
+    expect(started.details).toMatchObject({
+      active: true,
+      intervalLabel: "1h",
+      prompt,
+      runs: 0,
+      maxRuns: 3,
+    });
+    expect(h.tools.get("loop_start").executionMode).toBe("sequential");
+    expect(h.tools.get("loop_status").executionMode).toBe("sequential");
+    expect(h.tools.get("loop_stop").executionMode).toBe("sequential");
+
+    await vi.advanceTimersByTimeAsync(60 * 60_000);
+    expect(h.sendUserMessage).toHaveBeenCalledWith(prompt);
+
+    const status = await h.tools.get("loop_status").execute(
+      "status",
+      {},
+      undefined,
+      undefined,
+      h.ctx,
+    );
+    expect(status.details).toMatchObject({ active: true, runs: 1, maxRuns: 3 });
+    expect(status.content[0].text).toContain("Runs: 1 / 3");
+
+    const stopped = await h.tools.get("loop_stop").execute(
+      "stop",
+      { reason: "deploy succeeded" },
+      undefined,
+      undefined,
+      h.ctx,
+    );
+    expect(stopped.details).toEqual({
+      active: false,
+      stopped: true,
+      reason: "deploy succeeded",
+    });
+    expect(h.notify).toHaveBeenLastCalledWith("Loop stopped: deploy succeeded", "info");
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("counts successful dispatches and stops at maxRuns", async () => {
+    vi.useFakeTimers();
+    const h = harness();
+    h.handlers.get("session_start")!({ reason: "startup" }, h.ctx);
+    h.setIdle(false);
+    await h.tools.get("loop_start").execute(
+      "start",
+      { intervalMinutes: 1, prompt: "check deploy", maxRuns: 2 },
+      undefined,
+      undefined,
+      h.ctx,
+    );
+
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(h.sendUserMessage).not.toHaveBeenCalled();
+
+    h.setIdle(true);
+    await vi.advanceTimersByTimeAsync(120_000);
+    expect(h.sendUserMessage).toHaveBeenCalledTimes(2);
+    expect(h.notify).toHaveBeenLastCalledWith("Loop stopped after 2 runs.", "info");
+    expect(h.setStatus).toHaveBeenLastCalledWith("loop", undefined);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("honors a timeout before the first scheduled check", async () => {
+    vi.useFakeTimers();
+    const h = harness();
+    h.handlers.get("session_start")!({ reason: "startup" }, h.ctx);
+    await h.tools.get("loop_start").execute(
+      "start",
+      { intervalMinutes: 5, prompt: "check deploy", timeoutMinutes: 2 },
+      undefined,
+      undefined,
+      h.ctx,
+    );
+
+    await vi.advanceTimersByTimeAsync(119_999);
+    expect(h.sendUserMessage).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(h.sendUserMessage).not.toHaveBeenCalled();
+    expect(h.notify).toHaveBeenLastCalledWith("Loop stopped after reaching its timeout.", "info");
+    expect(vi.getTimerCount()).toBe(0);
+
+    const status = await h.tools.get("loop_status").execute(
+      "status",
+      {},
+      undefined,
+      undefined,
+      h.ctx,
+    );
+    expect(status.details).toEqual({ active: false });
   });
 
   it("skips a busy tick and discards the timer on session shutdown", async () => {
