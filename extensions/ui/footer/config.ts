@@ -20,8 +20,9 @@ export const DEFAULT_CONTEXT_BAR_CONFIG: ContextBarConfig = {
 
 export const DEFAULT_FOOTER_CONFIG: FooterConfig = {
   row1Left: ["pi", "separator", "model", "separator", "thinking"],
-  row1Right: ["tokens", "separator", "cost", "separator", "context"],
+  row1Right: ["context"],
   row2Left: ["path", "separator", "session"],
+  row2Right: ["tokens", "separator", "cost"],
   contextBar: DEFAULT_CONTEXT_BAR_CONFIG,
 };
 
@@ -75,10 +76,17 @@ function normalizeContextBar(value: unknown): ContextBarConfig {
 export function normalizeConfig(value: unknown): FooterConfig {
   if (!value || typeof value !== "object") return DEFAULT_FOOTER_CONFIG;
   const record = value as Record<string, unknown>;
+  const row1Right = normalizeSegments(record.row1Right ?? DEFAULT_FOOTER_CONFIG.row1Right);
+  const hasLegacyUsagePlacement = record.row2Right === undefined
+    && record.row1Right !== undefined
+    && (row1Right.includes("tokens") || row1Right.includes("cost"));
   return {
     row1Left: normalizeSegments(record.row1Left ?? DEFAULT_FOOTER_CONFIG.row1Left),
-    row1Right: normalizeSegments(record.row1Right ?? DEFAULT_FOOTER_CONFIG.row1Right),
+    row1Right,
     row2Left: normalizeSegments(record.row2Left ?? DEFAULT_FOOTER_CONFIG.row2Left),
+    row2Right: hasLegacyUsagePlacement
+      ? []
+      : normalizeSegments(record.row2Right ?? DEFAULT_FOOTER_CONFIG.row2Right),
     contextBar: normalizeContextBar(record.contextBar),
   };
 }

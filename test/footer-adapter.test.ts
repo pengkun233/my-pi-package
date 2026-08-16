@@ -10,14 +10,14 @@ describe("footer adapter", () => {
         type: "message",
         message: {
           role: "assistant",
-          usage: { input: 10, output: 7, cacheRead: 90, cacheWrite: 0, cost: { total: 0 } },
+          usage: { input: 10, output: 7, cacheRead: 90, cacheWrite: 0, cost: { total: 0.4 } },
         },
       },
       {
         type: "message",
         message: {
           role: "assistant",
-          usage: { input: 115, output: 3, cacheRead: 185, cacheWrite: 0, cost: { total: 0 } },
+          usage: { input: 115, output: 3, cacheRead: 185, cacheWrite: 0, cost: { total: 0.511 } },
         },
       },
     ];
@@ -41,8 +41,10 @@ describe("footer adapter", () => {
       },
     );
 
-    const withCache = component.render(120).join("\n");
-    expect(withCache).toContain("↑400 ↓10 CH61.7%");
+    const renderedWithCache = component.render(120);
+    const withCache = renderedWithCache.join("\n");
+    expect(renderedWithCache[1]).not.toContain("↑400");
+    expect(renderedWithCache[3]).toContain("↑400 ↓10 CH61.7% | $0.911");
     expect(withCache).not.toMatch(/\b[RW]\d/);
 
     branch.push({

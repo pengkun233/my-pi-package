@@ -192,10 +192,17 @@ export function sanitizeStatusText(text: string): string {
     .trim();
 }
 
-function padFooterLine(line: string, width: number, innerWidth: number): string {
-  const clipped = truncateToWidth(line, innerWidth, "");
-  if (width < 3) return truncateToWidth(clipped, width, "");
-  return ` ${clipped}${" ".repeat(Math.max(0, innerWidth - visibleWidth(clipped)))} `;
+function padFooterLine(line: string, width: number, innerWidth: number, right = ""): string {
+  const clippedRight = truncateToWidth(right, innerWidth, "");
+  const rightWidth = visibleWidth(clippedRight);
+  const leftLimit = clippedRight && rightWidth < innerWidth ? innerWidth - rightWidth - 1 : innerWidth - rightWidth;
+  const clippedLeft = truncateToWidth(line, Math.max(0, leftLimit), "");
+  const gap = clippedRight
+    ? " ".repeat(Math.max(clippedLeft ? 1 : 0, innerWidth - visibleWidth(clippedLeft) - rightWidth))
+    : "";
+  const content = clippedLeft + gap + clippedRight;
+  if (width < 3) return truncateToWidth(content, width, "");
+  return ` ${content}${" ".repeat(Math.max(0, innerWidth - visibleWidth(content)))} `;
 }
 
 export function buildFooterStatusRows(
@@ -203,15 +210,23 @@ export function buildFooterStatusRows(
   fixedIds: SegmentId[],
   statuses: readonly string[],
   width: number,
+  rightIds: SegmentId[] = [],
 ): string[] {
   if (width <= 0) return [];
   const innerWidth = Math.max(1, width - (width >= 3 ? 2 : 0));
+  const right = truncateToWidth(renderSegments(rightIds, ctx).join(" "), innerWidth, "");
+  const rightWidth = visibleWidth(right);
+  const firstLineWidth = right
+    ? Math.max(0, innerWidth - rightWidth - (rightWidth < innerWidth ? 1 : 0))
+    : innerWidth;
   const separator = ` ${renderSegment("separator", ctx) ?? "|"} `;
   const lines: string[] = [];
   let current = "";
 
+  const currentWidth = (): number => lines.length === 0 ? firstLineWidth : innerWidth;
   const startLine = (item: string): void => {
-    const wrapped = wrapTextWithAnsi(item, innerWidth);
+    if (currentWidth() <= 0) lines.push("");
+    const wrapped = wrapTextWithAnsi(item, currentWidth());
     lines.push(...wrapped.slice(0, -1));
     current = wrapped.at(-1) ?? "";
   };
@@ -222,7 +237,7 @@ export function buildFooterStatusRows(
       startLine(item);
       return;
     }
-    if (visibleWidth(current) + visibleWidth(separator) + visibleWidth(item) <= innerWidth) {
+    if (visibleWidth(current) + visibleWidth(separator) + visibleWidth(item) <= currentWidth()) {
       current += separator + item;
       return;
     }
@@ -235,6 +250,7 @@ export function buildFooterStatusRows(
   if (fixed) startLine(fixed);
   for (const status of statuses) appendItem(sanitizeStatusText(status));
   if (current) lines.push(current);
+  if (lines.length === 0 && right) lines.push("");
 
-  return lines.map((line) => padFooterLine(line, width, innerWidth));
+  return lines.map((line, index) => padFooterLine(line, width, innerWidth, index === 0 ? right : ""));
 }

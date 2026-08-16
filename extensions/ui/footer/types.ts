@@ -23,6 +23,7 @@ export interface FooterConfig {
   row1Left: SegmentId[];
   row1Right: SegmentId[];
   row2Left: SegmentId[];
+  row2Right: SegmentId[];
   contextBar: ContextBarConfig;
 }
 

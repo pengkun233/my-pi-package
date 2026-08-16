@@ -36,8 +36,9 @@ describe("footer layout", () => {
   it("uses one fixed row followed by a status row", () => {
     expect(DEFAULT_FOOTER_CONFIG).toEqual({
       row1Left: ["pi", "separator", "model", "separator", "thinking"],
-      row1Right: ["tokens", "separator", "cost", "separator", "context"],
+      row1Right: ["context"],
       row2Left: ["path", "separator", "session"],
+      row2Right: ["tokens", "separator", "cost"],
       contextBar: DEFAULT_CONTEXT_BAR_CONFIG,
     });
   });
@@ -50,6 +51,14 @@ describe("footer layout", () => {
       row2Right: [],
     });
     expect(config.row1Left).toEqual(["model"]);
+  });
+
+  it("preserves usage placement from legacy machine-local configurations", () => {
+    const config = normalizeConfig({
+      row1Right: ["tokens", "separator", "cost", "separator", "context"],
+    });
+    expect(config.row1Right).toEqual(["tokens", "separator", "cost", "separator", "context"]);
+    expect(config.row2Right).toEqual([]);
   });
 
   it("normalizes context bar configuration to safe bounds", () => {
@@ -118,6 +127,32 @@ describe("footer layout", () => {
     ]);
   });
 
+  it("anchors token and cost usage at the far right of the second row", () => {
+    const rows = buildFooterStatusRows({
+      ...context,
+      inputTokens: 187_000,
+      outputTokens: 4_200,
+      cacheHitRate: 71.7,
+      cost: 0.911,
+    }, DEFAULT_FOOTER_CONFIG.row2Left, ["MCP ready"], 80, DEFAULT_FOOTER_CONFIG.row2Right);
+    const firstRow = stripAnsi(rows[0]!);
+    expect(firstRow.trimEnd()).toMatch(/↑187K ↓4\.2K CH71\.7% \| \$0\.911$/);
+    expect(firstRow.indexOf("↑187K")).toBe(80 - 1 - "↑187K ↓4.2K CH71.7% | $0.911".length);
+  });
+
+  it("keeps the right-side usage summary fixed while statuses wrap", () => {
+    const rows = buildFooterStatusRows({
+      ...context,
+      inputTokens: 187_000,
+      outputTokens: 4_200,
+      cacheHitRate: 71.7,
+      cost: 0.911,
+    }, DEFAULT_FOOTER_CONFIG.row2Left, ["MCP status that must wrap below the fixed summary"], 52, DEFAULT_FOOTER_CONFIG.row2Right);
+    expect(stripAnsi(rows[0]!)).toContain("↑187K ↓4.2K CH71.7% | $0.911");
+    expect(stripAnsi(rows.slice(1).join(" "))).toContain("MCP status");
+    expect(rows.every((line) => visibleWidth(line) <= 52)).toBe(true);
+  });
+
   it("sanitizes layout-breaking controls while preserving ANSI styling", () => {
     const status = "\x1b[33mReady\n\t now\u0007\x1b[0m";
     expect(sanitizeStatusText(status)).toBe("\x1b[33mReady now\x1b[0m");
@@ -172,7 +207,13 @@ describe("footer layout", () => {
     for (const width of [0, 1, 2, 8, 20, 40, 80]) {
       crowded.terminalWidth = width;
       const row1 = buildFooterContent(crowded, DEFAULT_FOOTER_CONFIG.row1Left, DEFAULT_FOOTER_CONFIG.row1Right, width);
-      const statusRows = buildFooterStatusRows(crowded, DEFAULT_FOOTER_CONFIG.row2Left, ["plugin one", "plugin two"], width);
+      const statusRows = buildFooterStatusRows(
+        crowded,
+        DEFAULT_FOOTER_CONFIG.row2Left,
+        ["plugin one", "plugin two"],
+        width,
+        DEFAULT_FOOTER_CONFIG.row2Right,
+      );
       expect(visibleWidth(row1)).toBeLessThanOrEqual(width);
       expect(statusRows.every((row) => visibleWidth(row) <= width)).toBe(true);
     }
