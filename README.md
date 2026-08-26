@@ -39,7 +39,7 @@ The model-invoked `loop` skill translates natural-language scheduling, status, a
 Two other bundled skills are user-invoked only:
 
 - `/skill:wait-what-cn` re-pitches the previous response in concise technical Chinese, adds missing context, and preserves the current project's domain language.
-- `/skill:tidy-memory` audits current project memory and repository-owned `CLAUDE.md`, `AGENTS.md`, and `README.md` files as one knowledge set. It merges duplicate knowledge, removes stale material, and corrects claims against repository evidence.
+- `/skill:tidy-memory` periodically audits project memory against read-only repository evidence, merging duplicate knowledge and removing stale material. `/Neat-Freak` handles routine end-of-session updates to `README.md`, `ai_docs/`, and newly learned memory. Repository `CLAUDE.md` and `AGENTS.md` files remain human-maintained and read-only to both workflows.
 
 ### UI
 
