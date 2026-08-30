@@ -14,7 +14,7 @@ const bundledThemes = [
   "vesper",
   "poimandres",
 ];
-const allowed = /^(package\/(package\.json|README\.md|LICENSE|THIRD_PARTY_NOTICES\.md|install\.sh|config\/(packages\.json|global-agents\.md|herdr\/config\.toml)|themes\/(slop|flexoki-dark|everforest-dark-hard|gruvbox-dark|kanagawa-wave|dracula|ayu-dark|ayu-mirage|ayu-light|vesper|poimandres)\.json|prompts\/(Get-Shit-Done|Neat-Freak|aye)\.md|skills\/(loop|tidy-memory|wait-what-cn)\/SKILL\.md|extensions\/(chat-mode\.ts|openai-usage\.ts|loop\/.*\.ts|memory\/.*\.ts|memory\/README\.md|ui\/.*\.ts)))$/;
+const allowed = /^(package\/(package\.json|README\.md|LICENSE|THIRD_PARTY_NOTICES\.md|install\.sh|config\/(packages\.json|global-agents\.md|herdr\/config\.toml)|themes\/(slop|flexoki-dark|everforest-dark-hard|gruvbox-dark|kanagawa-wave|dracula|ayu-dark|ayu-mirage|ayu-light|vesper|poimandres)\.json|prompts\/(Get-Shit-Done|Neat-Freak|aye)\.md|skills\/(loop|tidy-memory|wait-what-cn)\/SKILL\.md|extensions\/(openai-usage\.ts|loop\/.*\.ts|memory\/.*\.ts|memory\/README\.md|ui\/.*\.ts)))$/;
 
 describe("tarball boundary", () => {
   it("contains only reproducible package resources", () => {

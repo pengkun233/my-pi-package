@@ -1,6 +1,6 @@
 # my-pi-package
 
-Private personal [Pi](https://pi.dev) package for reproducing this setup on another machine. It bundles an always-on TUI, a session-scoped Loop scheduler with a model-invoked skill, a discussion-only Chat Mode, progressive memory, OpenAI usage, two user-invoked skills, three prompt templates, eleven selectable themes, an installer-managed global voice-input preference, and the preferred Herdr configuration. It contains no credentials, sessions, memory data, or other machine state.
+Private personal [Pi](https://pi.dev) package for reproducing this setup on another machine. It bundles an always-on TUI, a session-scoped Loop scheduler with a model-invoked skill, progressive memory, OpenAI usage, two user-invoked skills, three prompt templates, eleven selectable themes, an installer-managed global voice-input preference, and the preferred Herdr configuration. It contains no credentials, sessions, memory data, or other machine state.
 
 ## Install
 
@@ -75,19 +75,6 @@ The package defaults remain authoritative when those files are absent or invalid
 - stopping cancels future runs without aborting work already in progress.
 
 Loop publishes background activity through the terminal-status plugin's generic event contract. The terminal-tab title shows `🟣 等待中` whenever a Loop is active or a foreground/background `pi-subagents` run is detected. Input-required and error states retain higher priority.
-
-### Chat Mode
-
-`extensions/chat-mode.ts` provides a lightweight discussion-only mode:
-
-- disabled by default in every session and reset to that default after startup, `/reload`, `/resume`, or a new session;
-- toggled with `/chat` or `Ctrl+Alt+C` while the agent is idle;
-- removes `edit` and `write`, adds a blocking backstop for those tool calls, and injects per-turn guidance against actions with side effects;
-- preserves read, shell, search, subagent, and extension tools, so it is a guard against accidental edits rather than a security sandbox;
-- leaves user-entered `!` and `!!` shell commands untouched;
-- shows `💬 chat` in the footer while active.
-
-All session modes default to normal mode, though `/chat` can enable Chat Mode where extension commands are available. Chat Mode state is intentionally not persisted.
 
 ### Memory
 
