@@ -1,6 +1,6 @@
 # my-pi-package
 
-Private personal [Pi](https://pi.dev) package for reproducing this setup on another machine. It bundles an always-on TUI, a session-scoped Loop scheduler with a model-invoked skill, progressive memory, OpenAI usage, two user-invoked skills, three prompt templates, eleven selectable themes, an installer-managed global voice-input preference, and the preferred Herdr configuration. It contains no credentials, sessions, memory data, or other machine state.
+Private personal [Pi](https://pi.dev) package for reproducing this setup on another machine. It bundles an always-on TUI, a session-scoped Loop scheduler with a model-invoked skill, progressive memory, a prompt-snippet picker, OpenAI usage, two user-invoked skills, three prompt templates, eleven selectable themes, an installer-managed global voice-input preference, and the preferred Herdr configuration. It contains no credentials, sessions, memory data, or other machine state.
 
 ## Install
 
@@ -79,6 +79,10 @@ Loop publishes background activity through the terminal-status plugin's generic 
 ### Memory
 
 `extensions/memory/` provides progressive-disclosure global/project memory indexes, the `memory` tool, `/memory`, and `/remember`. Runtime data remains under `~/.pi/agent/memory/` (or `PI_MEMORY_DIR`) and is never part of this repository.
+
+### Prompt snippets
+
+`extensions/prompt-snippets/` provides `Alt+Shift+S` and `/snippets` for toggling small prepend/append rules on the next message. It merges package defaults from its adjacent `snippets/` directory with machine-local files under `~/.pi/agent/snippets/`; a local file overrides a packaged snippet with the same filename. Package updates synchronize defaults, while private or machine-specific snippets remain outside Git and must be synchronized separately when desired.
 
 ### OpenAI usage
 

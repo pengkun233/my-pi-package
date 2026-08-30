@@ -29,6 +29,7 @@ describe("package boundary", () => {
       "./extensions/ui/index.ts",
       "./extensions/loop/index.ts",
       "./extensions/memory/index.ts",
+      "./extensions/prompt-snippets/index.ts",
       "./extensions/openai-usage.ts",
     ]);
     expect(pkg.pi.skills).toEqual(["./skills"]);
