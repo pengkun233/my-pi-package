@@ -95,6 +95,28 @@ Loop publishes background activity through the terminal-status plugin's generic 
 
 Pi packages do not natively expose `AGENTS.md` as a manifest resource, so this policy is applied by the installer rather than the `pi.prompts` manifest. After changing or updating `config/global-agents.md`, rerun `install.sh`, then run `/reload` or restart Pi. `pi update --extensions` alone does not refresh this managed block.
 
+### Herdr sidebar status
+
+`extensions/herdr-status/` adds compact, independent task marks to the second line of Herdr's Agents sidebar:
+
+```text
+🚀 pi
+💤 pi
+📖 pi
+🚀 pi 🤖 2 subagents running
+```
+
+- Sending a message switches to `🚀`; finishing a response does not change the mark.
+- `Alt+M` switches `🚀 → 💤`, then cycles `💤 ↔ 📖`.
+- `📖` is a manual bookmark for a valuable conversation to revisit, not an unread-result notification. Viewing the agent does not clear it.
+- Marks are saved per Pi session and restored on reload/resume. New sessions start at `💤`.
+- Subagent counts are independent of the mark; zero hides the suffix and one uses `1 subagent running`.
+- Counting uses `@tintinweb/pi-subagents`'s `subagents:started/completed/failed` events (verified with `0.19.0`), covering top-level foreground/background agents, failure, cancellation, and resume. Queued agents are not counted until they start. That version does **not** expose workflow/nested child lifecycles or a numeric registry API, so those children cannot be counted. The older unscoped `pi-subagents` package in the installer policy uses a different contract and does not provide this counter; it is not replaced automatically.
+- This changes display metadata only: it never pauses a task or overrides Herdr's actual lifecycle indicator on the first line.
+- Only interactive Pi inside Herdr enables this extension. Reports are scoped to the calling pane, refreshed every 15 seconds, cleared on shutdown, and expire after 45 seconds if Pi crashes.
+
+Requires Herdr's `pane report-metadata` support (verified with `0.8.2`). The bundled Herdr config renders `$pi_task_mark`, `agent`, and `$pi_subagents` on the second line. Re-run `install.sh` after package updates to apply the config, then reload Herdr's config and run `/reload` in Pi. The Herdr-managed `herdr-agent-state.ts` integration is left untouched.
+
 ### Herdr configuration
 
 `config/herdr/config.toml` is the reproducible Herdr preference file installed by `install.sh`. It includes the Dracula theme, direct workspace/tab/agent navigation keys, the `prefix+a` Pi-agent launcher command, expanded agent-row formatting, and disabled persisted pane history. The launcher binding expects `~/.local/bin/herdr-new-pi` to exist on the target machine; that machine-local helper is not bundled.
