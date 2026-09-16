@@ -40,7 +40,7 @@ Three other bundled skills are user-invoked only:
 
 - `/skill:project-init` initializes a target directory as a Git repository with concise `AGENTS.md`, `README.md`, and `ai_docs/` documentation, plus a `CLAUDE.md` symlink.
 - `/skill:wait-what-cn` re-pitches the previous response in concise technical Chinese, adds missing context, and preserves the current project's domain language.
-- `/skill:tidy-memory` periodically audits project memory against read-only repository evidence, merging duplicate knowledge and removing stale material. `/Neat-Freak` handles routine end-of-session updates to `ai_docs/` and newly learned memory. `README.md` is generated or updated only after a human explicitly declares a project or milestone complete; repository `CLAUDE.md` and `AGENTS.md` files remain human-maintained and read-only to both workflows.
+- `/skill:tidy-memory` periodically audits project memory and `ai_docs/engineering.md`, using repository evidence to resolve conflicts and remove duplicate or stale knowledge. `/Neat-Freak` updates development experience in `ai_docs/engineering.md`, affected references in `ai_docs/reference.md`, and newly learned memory without duplicating content. `README.md` is generated or updated only after a human explicitly declares a project or milestone complete; repository `CLAUDE.md` and `AGENTS.md` files remain human-maintained and read-only to both workflows.
 
 ### UI
 

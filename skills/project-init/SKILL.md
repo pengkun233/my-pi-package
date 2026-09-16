@@ -25,7 +25,7 @@ disable-model-invocation: true
 - `AGENTS.md` 的完整草案；
 - 其他文件的内容摘要；
 
-已有文件保留无关内容，把新内容合并到对应章节。若已有 `CLAUDE.md` 包含仍适用的项目规则，先将它们纳入 `AGENTS.md` 草案，再以软链接统一入口。用户明确确认后再写入。
+已有文件保留无关内容，把新内容合并到对应章节。若已有 `CLAUDE.md` 包含仍适用的项目规则，先将它们纳入 `AGENTS.md` 草案，再以软链接统一入口。默认在用户确认草案后写入；用户已明确批准具体方案时，直接按该方案执行，不重复确认。
 
 `AGENTS.md` 保持精简，只包含：
 
@@ -34,19 +34,17 @@ disable-model-invocation: true
 
 ## 设计原则
 
-- 避免过度设计，尤其避免过度防御。
-
 ## 项目文档
 
 - 项目介绍和使用方法见 `README.md`。
-- 当前状态、阻塞和下一步见 `ai_docs/progress.md`。
+- `ai_docs/engineering.md` 记录项目开发经验与常见误区。
 - 参考文件、外部代码库和资料入口见 `ai_docs/reference.md`。
 
 ```
 
 具体状态和决策写入其权威文件，不写入 `AGENTS.md`。
 
-起草完成标准：四个文档都有最终草案，现有内容的合并方式清楚，用户已明确确认。
+起草完成标准：四个文档都有最终草案，现有内容的合并方式清楚，写入方案已获用户明确批准（包括此前的批准）。
 
 ## 写入
 
@@ -66,19 +64,7 @@ disable-model-invocation: true
 ## Other references
 ```
 
-6. 创建 `ai_docs/progress.md`：
-
-```markdown
-# Progress
-
-## Current status
-
-## Completed
-
-## Blockers
-
-## Next steps
-```
+6. 创建或合并 `ai_docs/engineering.md`，记录已有的、经过验证的开发经验与常见误区；没有内容时只保留标题。
 
 所有生成的 Markdown 文件使用中文，保持在 200 行以内。
 
