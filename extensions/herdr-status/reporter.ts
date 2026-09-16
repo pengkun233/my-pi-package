@@ -1,8 +1,9 @@
 import { reportMetadata, type MetadataParams } from "./socket.js";
-import { MARK_ICONS, subagentLabel, type TaskMark } from "./state.js";
+import { displayMark, type TaskMark } from "./state.js";
 
 export const MARK_TOKEN = "pi_task_mark";
 export const SUBAGENTS_TOKEN = "pi_subagents";
+export const SESSION_NAME_TOKEN = "pi_session_name";
 const SOURCE = "my-pi-package:herdr-status";
 
 /** Independent display-only requests; Herdr rejects out-of-order sequence numbers. */
@@ -16,18 +17,20 @@ export class SidebarReporter {
     private readonly send: (params: MetadataParams) => Promise<void> = reportMetadata,
   ) {}
 
-  publish(mark: TaskMark, count: number): void {
+  publish(mark: TaskMark, count: number, name: string | undefined): void {
     if (this.closed) return;
     void this.report({
-      [MARK_TOKEN]: MARK_ICONS[mark],
-      [SUBAGENTS_TOKEN]: subagentLabel(count) || null,
+      [MARK_TOKEN]: displayMark(mark, count),
+      // Clear the legacy suffix for panes upgrading from the separate count display.
+      [SUBAGENTS_TOKEN]: null,
+      [SESSION_NAME_TOKEN]: name ?? null,
     });
   }
 
   async dispose(): Promise<void> {
     if (this.closed) return;
     this.closed = true;
-    await this.report({ [MARK_TOKEN]: null, [SUBAGENTS_TOKEN]: null });
+    await this.report({ [MARK_TOKEN]: null, [SUBAGENTS_TOKEN]: null, [SESSION_NAME_TOKEN]: null });
   }
 
   private async report(tokens: MetadataParams["tokens"]): Promise<void> {

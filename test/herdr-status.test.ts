@@ -5,7 +5,7 @@ import { reportMetadata } from "../extensions/herdr-status/socket.js";
 vi.mock("../extensions/herdr-status/socket.js", () => ({ reportMetadata: vi.fn(async () => {}) }));
 const send = vi.mocked(reportMetadata);
 const flush = async () => { for (let i = 0; i < 10; i++) await Promise.resolve(); };
-function harness(mode = "tui") {
+function harness(mode = "tui", sessionName?: string) {
   const hooks = new Map<string, Function>();
   const listeners = new Map<string, Set<(data: unknown) => void>>();
   let shortcut: (() => Promise<void>) | undefined;
@@ -19,6 +19,7 @@ function harness(mode = "tui") {
       shortcut = options.handler;
     },
     exec, appendEntry,
+    getSessionName: vi.fn(() => sessionName),
     events: {
       on: (name: string, fn: (data: unknown) => void) => {
         const set = listeners.get(name) ?? new Set();
@@ -52,6 +53,26 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); });
 
 describe("Herdr sidebar extension", () => {
+  it.each([
+    { reason: "startup", name: "New session" },
+    { reason: "resume", name: "Restored session" },
+  ])("publishes the $reason session name at startup", async ({ reason, name }) => {
+    const h = harness("tui", name);
+    await h.emit("session_start", { reason });
+    expect(h.last()?.pi_session_name).toBe(name);
+    await h.emit("session_shutdown");
+  });
+
+  it("publishes manual session-name changes, including clearing the name", async () => {
+    const h = harness("tui", "Original");
+    await h.emit("session_start");
+    await h.emit("session_info_changed", { name: "Renamed" });
+    expect(h.last()?.pi_session_name).toBe("Renamed");
+    await h.emit("session_info_changed", { name: undefined });
+    expect(h.last()?.pi_session_name).toBeNull();
+    await h.emit("session_shutdown");
+  });
+
   it("starts asleep, marks user input working, ignores completion and cycles manually", async () => {
     const h = harness();
     expect(send).not.toHaveBeenCalled();
@@ -81,23 +102,25 @@ describe("Herdr sidebar extension", () => {
     await h.event("subagents:started", { id: "a" });
     await h.event("subagents:started", { id: "a" });
     expect(send).toHaveBeenCalledTimes(2);
-    expect(h.last()?.pi_subagents).toBe("🤖 1 subagent running");
+    expect(h.last()?.pi_task_mark).toBe("🤖");
+    expect(h.last()?.pi_subagents).toBeNull();
     await h.emit("tool_execution_end", { toolName: "Agent" });
     expect(send).toHaveBeenCalledTimes(2);
     await h.event("subagents:started", { id: "b" });
-    await h.shortcut(); expect(h.last()?.pi_task_mark).toBe("📖");
-    expect(h.last()?.pi_subagents).toBe("🤖 2 subagents running");
+    await h.shortcut(); expect(h.last()?.pi_task_mark).toBe("🤖");
+    expect(h.last()?.pi_subagents).toBeNull();
     for (const bad of [null, {}, { id: "" }, { id: 1 }]) await h.event("subagents:started", bad);
     expect(send).toHaveBeenCalledTimes(4);
     await h.event("subagents:failed", { id: "a", status: "aborted" });
-    expect(h.last()?.pi_subagents).toBe("🤖 1 subagent running");
+    expect(h.last()?.pi_task_mark).toBe("🤖");
     await h.event("subagents:completed", { id: "b" });
     await h.event("subagents:completed", { id: "b" });
     expect(h.last()?.pi_subagents).toBeNull();
+    expect(h.last()?.pi_task_mark).toBe("📖");
     await h.event("subagents:started", { id: "a" });
-    expect(h.last()?.pi_subagents).toBe("🤖 1 subagent running");
+    expect(h.last()?.pi_task_mark).toBe("🤖");
     await h.emit("session_shutdown");
-    expect(h.last()).toEqual({ pi_task_mark: null, pi_subagents: null });
+    expect(h.last()).toEqual({ pi_task_mark: null, pi_subagents: null, pi_session_name: null });
     expect([...h.listeners.values()].every((set) => set.size === 0)).toBe(true);
     const calls = send.mock.calls.length;
     await h.event("subagents:started", { id: "c" });
@@ -116,7 +139,7 @@ describe("Herdr sidebar extension", () => {
     await h.emit("session_shutdown");
     await h.emit("session_shutdown");
     await h.emit("session_start", { reason: "reload" });
-    expect(h.last()).toEqual({ pi_task_mark: "💤", pi_subagents: null });
+    expect(h.last()).toEqual({ pi_task_mark: "💤", pi_subagents: null, pi_session_name: null });
     const calls = send.mock.calls.length;
     await h.event("subagents:completed", { id: "old" });
     expect(send).toHaveBeenCalledTimes(calls);
@@ -128,6 +151,7 @@ describe("Herdr sidebar extension", () => {
   it.each(["rpc", "print", "json"])("does nothing in inherited %s child sessions", async (mode) => {
     const h = harness(mode); await h.emit("session_start");
     await h.emit("input", { source: "rpc" }); await h.shortcut();
+    await h.emit("session_info_changed", { name: "Child name" });
     await h.event("subagents:started", { id: "child" });
     await h.emit("session_shutdown");
     expect(send).not.toHaveBeenCalled(); expect(h.appendEntry).not.toHaveBeenCalled();

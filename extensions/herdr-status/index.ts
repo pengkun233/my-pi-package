@@ -10,10 +10,11 @@ export default function herdrStatus(pi: ExtensionAPI): void {
 
   let mark: TaskMark = "sleeping";
   let count = 0;
+  let name: string | undefined;
   let reporter: SidebarReporter | undefined;
   let counter: SubagentCounter | undefined;
 
-  const publish = () => reporter?.publish(mark, count);
+  const publish = () => reporter?.publish(mark, count, name);
   const setMark = (next: TaskMark) => {
     if (!reporter || next === mark) return;
     mark = next;
@@ -24,6 +25,7 @@ export default function herdrStatus(pi: ExtensionAPI): void {
     if (ctx.mode !== "tui" || reporter) return;
     mark = "sleeping";
     count = 0;
+    name = pi.getSessionName();
     reporter = new SidebarReporter(paneId, (error) => {
       ctx.ui.notify(`Could not update Herdr sidebar metadata: ${error.message}`, "warning");
     });
@@ -31,6 +33,11 @@ export default function herdrStatus(pi: ExtensionAPI): void {
       count = running;
       publish();
     });
+    publish();
+  });
+
+  pi.on("session_info_changed", (event) => {
+    name = event.name;
     publish();
   });
 

@@ -95,28 +95,40 @@ Loop publishes background activity through the terminal-status plugin's generic 
 
 Pi packages do not natively expose `AGENTS.md` as a manifest resource, so this policy is applied by the installer rather than the `pi.prompts` manifest. After changing or updating `config/global-agents.md`, rerun `install.sh`, then run `/reload` or restart Pi. `pi update --extensions` alone does not refresh this managed block.
 
+### Automatic session names
+
+`extensions/session-name/` names interactive Pi sessions independently of Herdr:
+
+- A separate asynchronous `openai-codex / gpt-5.6-luna` request with `low` reasoning runs on the first nonempty interactive message, then messages 11, 21, and so on. Empty, extension-generated, and headless/RPC inputs do not count.
+- Requests use the existing Codex login, the previous title, and at most 6,000 characters of recent user/assistant text. Tools, reasoning, images and system prompts are excluded. Issue numbers are preserved when available; this extension does not fetch GitLab issues itself.
+- No naming tools or instructions are added to the main conversation. Background requests consume their own provider quota and are not included in the main turn's usage totals.
+- Titles and counters persist with the session. `/name` (or another explicit rename) immediately disables automatic overwrites for that session, including after reload/resume. Existing named sessions are preserved.
+- Only one request runs at a time; overlapping scheduled updates coalesce. Requests have a 45-second deadline, are cancelled on shutdown/tree navigation, and cannot overwrite a manual rename or a replacement session. Failures keep the current title and wait for the next scheduled interval; warnings are shown at most once per load.
+- No polling, watcher, permanent timer, or additional local process is used. The first naming attempt happens on the next eligible message, not during startup.
+
 ### Herdr sidebar status
 
 `extensions/herdr-status/` adds compact, independent task marks to the second line of Herdr's Agents sidebar:
 
 ```text
-🚀 pi
-💤 pi
-📖 pi
-🚀 pi 🤖 2 subagents running
+🚀 #123 修复登录超时
+💤 #123 修复登录超时
+📖 #123 修复登录超时
+🤖 #123 修复登录超时
 ```
 
+- The purple title mirrors Pi's session name on startup and every rename, including manual `/name`; unnamed sessions hide the title. Herdr never generates or independently stores a task name.
 - Sending a message switches to `🚀`; finishing a response does not change the mark.
 - `Alt+M` switches `🚀 → 📖`, then cycles `📖 ↔ 💤`.
 - `📖` is a manual bookmark for a valuable conversation to revisit, not an unread-result notification. Viewing the agent does not clear it.
 - Marks and counts live only in memory. Initialization (including reload/resume) starts at `💤` with zero subagents; previous marks and running counts are not restored or written to session history.
-- Subagent counts are independent of the mark; zero hides the suffix and one uses `1 subagent running`.
+- Any running subagent temporarily replaces the task mark with `🤖`; no count or suffix is displayed. When all subagents finish, the original mark returns. `Alt+M` still changes the underlying mark while the robot is visible.
 - Counting uses `@tintinweb/pi-subagents`'s `subagents:started/completed/failed` events (verified with `0.19.0`), covering top-level foreground/background agents, failure, cancellation, and resume. Queued agents are not counted until they start. That version does **not** expose workflow/nested child lifecycles or a numeric registry API, so those children cannot be counted. The older unscoped `pi-subagents` package in the installer policy uses a different contract and does not provide this counter; it is not replaced automatically.
 - This changes display metadata only: it never pauses a task or overrides Herdr's actual lifecycle indicator on the first line.
-- Only interactive Pi inside Herdr enables this extension. Reports are scoped to the calling pane and sent on initialization and mark/count changes, with fields cleared on normal shutdown. There is no heartbeat or TTL, so a crash may leave stale display metadata.
+- Only interactive Pi inside Herdr enables this extension. Reports are scoped to the calling pane and sent on initialization and mark/count/name changes, with fields cleared on normal shutdown. There is no heartbeat or TTL, so a crash may leave stale display metadata.
 - Reports call `pane.report_metadata` directly over the local Herdr socket, without spawning the CLI. Each request has a timeout and increasing sequence number; failures are reported without retries, warning deduplication, or a coalescing queue.
 
-Requires Herdr's `pane.report_metadata` socket support (verified with `0.8.2`). The bundled Herdr config renders `$pi_task_mark`, `agent`, and `$pi_subagents` on the second line. Re-run `install.sh` after package updates to apply the config, then reload Herdr's config and run `/reload` in Pi. The Herdr-managed `herdr-agent-state.ts` integration is left untouched.
+Requires Herdr's `pane.report_metadata` socket support (verified with `0.9.0`). The bundled Herdr config renders `$pi_task_mark` and `$pi_session_name` on Pi's second line, with fixed blue/yellow/purple text colors. Other agents retain their agent label. Re-run `install.sh` after package updates to apply the config, then reload Herdr's config and run `/reload` in Pi. The Herdr-managed `herdr-agent-state.ts` integration is left untouched.
 
 ### Herdr configuration
 

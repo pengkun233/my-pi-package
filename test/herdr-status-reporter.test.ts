@@ -8,14 +8,18 @@ describe("Herdr metadata reporting", () => {
   it("reports only display tokens to the calling pane, without TTL", async () => {
     const send = vi.fn(async (_params: MetadataParams) => {});
     const reporter = new SidebarReporter("w1:p3", vi.fn(), send);
-    reporter.publish("review", 2);
+    reporter.publish("review", 2, "Named session");
     expect(send).toHaveBeenCalledWith({
       pane_id: "w1:p3", source: "my-pi-package:herdr-status", agent: "pi",
-      seq: expect.any(Number), tokens: { pi_task_mark: "📖", pi_subagents: "🤖 2 subagents running" },
+      seq: expect.any(Number), tokens: {
+        pi_task_mark: "🤖", pi_subagents: null, pi_session_name: "Named session",
+      },
     });
     await reporter.dispose();
-    expect(send.mock.calls.at(-1)?.[0].tokens).toEqual({ pi_task_mark: null, pi_subagents: null });
-    reporter.publish("working", 1);
+    expect(send.mock.calls.at(-1)?.[0].tokens).toEqual({
+      pi_task_mark: null, pi_subagents: null, pi_session_name: null,
+    });
+    reporter.publish("working", 1, "Ignored");
     await reporter.dispose();
     expect(send).toHaveBeenCalledTimes(2);
   });
@@ -24,9 +28,9 @@ describe("Herdr metadata reporting", () => {
     const finishes: Array<() => void> = [];
     const send = vi.fn((_params: MetadataParams) => new Promise<void>((resolve) => { finishes.push(resolve); }));
     const reporter = new SidebarReporter("w1:p3", vi.fn(), send);
-    reporter.publish("working", 1);
-    reporter.publish("sleeping", 2);
-    reporter.publish("review", 3);
+    reporter.publish("working", 1, "One");
+    reporter.publish("sleeping", 2, "Two");
+    reporter.publish("review", 3, undefined);
     expect(send).toHaveBeenCalledTimes(3);
     const disposed = reporter.dispose();
     expect(send).toHaveBeenCalledTimes(4);
@@ -44,15 +48,17 @@ describe("Herdr metadata reporting", () => {
     const send = vi.fn(async (_params: MetadataParams) => { throw error; });
     const warn = vi.fn();
     const reporter = new SidebarReporter("w1:p3", warn, send);
-    reporter.publish("sleeping", 0);
+    reporter.publish("sleeping", 0, undefined);
     await flush();
     expect(send).toHaveBeenCalledTimes(1);
-    reporter.publish("working", 0);
+    reporter.publish("working", 0, "Active");
     await flush();
     expect(send).toHaveBeenCalledTimes(2);
     expect(warn).toHaveBeenCalledTimes(2);
     expect(warn).toHaveBeenLastCalledWith(error);
-    expect(send.mock.calls[1]?.[0].tokens).toEqual({ pi_task_mark: "🚀", pi_subagents: null });
+    expect(send.mock.calls[1]?.[0].tokens).toEqual({
+      pi_task_mark: "🚀", pi_subagents: null, pi_session_name: "Active",
+    });
     await reporter.dispose();
     expect(warn).toHaveBeenCalledTimes(3);
   });

@@ -28,6 +28,7 @@ describe("package boundary", () => {
     expect(pkg.pi.extensions).toEqual([
       "./extensions/ui/index.ts",
       "./extensions/herdr-status/index.ts",
+      "./extensions/session-name/index.ts",
       "./extensions/loop/index.ts",
       "./extensions/memory/index.ts",
       "./extensions/prompt-snippets/index.ts",

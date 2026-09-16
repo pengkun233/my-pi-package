@@ -10,8 +10,6 @@ export function nextMark(mark: TaskMark): TaskMark {
   return mark === "review" ? "sleeping" : "review";
 }
 
-export function subagentLabel(count: number): string {
-  return Number.isSafeInteger(count) && count > 0
-    ? `🤖 ${count} subagent${count === 1 ? "" : "s"} running`
-    : "";
+export function displayMark(mark: TaskMark, count: number): string {
+  return Number.isSafeInteger(count) && count > 0 ? "🤖" : MARK_ICONS[mark];
 }
