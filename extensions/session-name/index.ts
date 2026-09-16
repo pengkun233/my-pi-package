@@ -59,10 +59,10 @@ export default function sessionName(pi: ExtensionAPI): void {
         pi.setSessionName(title);
       }
     }).catch(() => {
-      // Never leak provider responses or credentials into notifications; no immediate retries.
+      // Never leak provider responses or credentials into notifications; no retries here.
       if (enabled && epoch === generation && !state.manual && !warned) {
         warned = true;
-        ctx.ui.notify("Automatic session naming failed; kept the current name. Check openai-codex / gpt-5.6-luna access. Will try at the next 10-round interval.", "warning");
+        ctx.ui.notify("Automatic session naming failed; kept the current name. Check session-name.json, provider access and the 16-column title limit. Will try at the next 10-round interval.", "warning");
       }
     }).finally(() => {
       clearTimeout(timeout);

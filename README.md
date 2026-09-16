@@ -79,13 +79,25 @@ Loop publishes background activity through the terminal-status plugin's generic 
 
 `extensions/session-name/` names interactive Pi sessions independently of Herdr:
 
-- A separate asynchronous `openai-codex / gpt-5.6-luna` request with `low` reasoning runs on the first nonempty interactive message, then messages 11, 21, and so on. Empty, extension-generated, and headless/RPC inputs do not count.
-- Requests use the existing Codex login, the previous title, and at most 6,000 characters of recent user/assistant text. Tools, reasoning, images and system prompts are excluded. Issue numbers are preserved when available; this extension does not fetch GitLab issues itself.
-- Naming prefers titles within 16 display columns (8 Chinese characters) so Herdr can show the core task: Chinese characters/full-width punctuation count as 2 columns; ASCII letters, digits, spaces and punctuation count as 1. Mixed titles use the summed width; shorter is still preferred. Only when essential details do not fit, use `16列内概括：简短描述` (at most 40 characters total); issue numbers can go after the colon. Unchanged tasks keep their previous title only if it already meets these brevity rules.
+- A separate asynchronous request (default: `openai-codex / gpt-5.6-luna`, `low` reasoning) runs on the first nonempty interactive message, then messages 11, 21, and so on. Empty, extension-generated, and headless/RPC inputs do not count.
+- Requests use the configured provider's existing Pi credentials, the previous title, and at most 6,000 characters of recent user/assistant text. Tools, reasoning, images and system prompts are excluded. Issue numbers are preserved when available; this extension does not fetch GitLab issues itself.
+- Generated titles must fit within 16 display columns (8 Chinese characters): Chinese characters/full-width punctuation count as 2 columns; ASCII letters, digits, spaces and punctuation count as 1. Mixed titles use the summed width; shorter is still preferred. The entire title, including descriptions and issue numbers, is validated with Pi's display-width helper. Over-budget output gets one model rewrite, never blind truncation; if it still exceeds the budget, naming fails and the current name is kept. Unchanged tasks keep their previous title only if it already meets these brevity rules.
 - No naming tools or instructions are added to the main conversation. Background requests consume their own provider quota and are not included in the main turn's usage totals.
 - Titles and counters persist with the session. `/name` (or another explicit rename) immediately disables automatic overwrites for that session, including after reload/resume. Existing named sessions are preserved.
 - Only one request runs at a time; overlapping scheduled updates coalesce. Requests have a 45-second deadline, are cancelled on shutdown/tree navigation, and cannot overwrite a manual rename or a replacement session. Failures keep the current title and wait for the next scheduled interval; warnings are shown at most once per load.
 - No polling, watcher, permanent timer, or additional local process is used. The first naming attempt happens on the next eligible message, not during startup.
+
+Configure the background model in `~/.pi/agent/session-name.json` (or `$PI_CODING_AGENT_DIR/session-name.json` when overridden):
+
+```json
+{
+  "provider": "openai-codex",
+  "model": "gpt-5.6-luna",
+  "reasoning": "low"
+}
+```
+
+All fields are optional and default to the values above. `reasoning` accepts `off`, `minimal`, `low`, `medium`, `high`, `xhigh`, or `max`; choose a level supported by the model. The model must be registered in Pi and its provider authenticated. Settings are read at each naming attempt, without `/reload`; they do not follow the main conversation's `/model`. Missing files use defaults; malformed settings fail the naming attempt rather than silently selecting another model. Do not put API keys in this file.
 
 ### Herdr sidebar status
 
