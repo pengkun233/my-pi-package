@@ -134,6 +134,10 @@ Requires Herdr's `pane.report_metadata` socket support (verified with `0.9.0`). 
 
 `config/herdr/config.toml` is the reproducible Herdr preference file installed by `install.sh`. It includes the Dracula theme, direct workspace/tab/agent navigation keys, the `prefix+a` Pi-agent launcher command, expanded agent-row formatting, and disabled persisted pane history. The launcher binding expects `~/.local/bin/herdr-new-pi` to exist on the target machine; that machine-local helper is not bundled.
 
+The first agent row shows the state icon, a cyan bold machine label, workspace, and tab; Pi's second row keeps its task mark and session name. Herdr 0.9.0 omits the `machine` token for a single local machine. Separators are controlled by Herdr, not this config. Both the default `rows` and `rows_by_agent.pi` include the machine token.
+
+To sync only the sidebar on another machine, back up its `~/.config/herdr/config.toml`, then replace the `[ui.sidebar.agents]` and `[ui.sidebar.agents.rows_by_agent]` sections with those from `config/herdr/config.toml` (merge any machine-specific agent overrides deliberately). Run `herdr server reload-config` to apply without stopping the session. Running `install.sh` instead installs the entire preference file, not just the sidebar. Saved machine profiles and SSH credentials are not included.
+
 Set `PACKAGE_HERDR_CONFIG_TARGET` when running the installer to write the config somewhere other than `~/.config/herdr/config.toml`.
 
 ### Prompts and theme
