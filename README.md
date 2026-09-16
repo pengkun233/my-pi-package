@@ -1,34 +1,16 @@
 # my-pi-package
 
-Private personal [Pi](https://pi.dev) package for reproducing this setup on another machine. It bundles an always-on TUI, a session-scoped Loop scheduler with a model-invoked skill, progressive memory, a prompt-snippet picker, OpenAI usage, three user-invoked skills, three prompt templates, eleven selectable themes, an installer-managed global voice-input preference, and the preferred Herdr configuration. It contains no credentials, sessions, memory data, or other machine state.
+Private personal [Pi](https://pi.dev) package for reproducing this setup on another machine. It bundles an always-on TUI, a session-scoped Loop scheduler with a model-invoked skill, progressive memory, a prompt-snippet picker, OpenAI usage, three user-invoked skills, three prompt templates, eleven selectable themes, recommended global interaction preferences, and reference Herdr configuration. It contains no credentials, sessions, memory data, or other machine state.
 
 ## Install
 
-Clone the repository from GitHub, then run:
+Install the Pi package with Pi's own package manager:
 
 ```bash
-./install.sh
+pi install git:github.com/pengkun233/my-pi-package
 ```
 
-The script derives the unpinned Git package source from `origin`. Before a remote exists, supply it explicitly:
-
-```bash
-MY_PI_PACKAGE_SOURCE=git:github.com/OWNER/my-pi-package ./install.sh
-```
-
-The installer:
-
-- registers this repository as an update-managed, unpinned Git Pi Package;
-- installs the independent packages in `config/packages.json`;
-- installs `git:github.com/mattpocock/skills@release/v1.2` with only the exact 15 configured skills enabled; the branch folds the former `batch-grill-me` workflow into `grilling`;
-- normalizes Plannotator to an ordinary enabled package entry;
-- sets the global Pi theme to `slop` while preserving unrelated settings;
-- installs the voice-input policy as a managed block in `~/.pi/agent/AGENTS.md`, preserving unrelated global instructions;
-- installs `config/herdr/config.toml` to `~/.config/herdr/config.toml`, keeping the previous file as `config.toml.backup-before-my-pi-package` when its contents change;
-- installs the RTK executable with the official Linux installer only when it is missing;
-- warns about legacy duplicate resources but never deletes or moves them.
-
-Re-running it is safe. Run it again whenever `config/packages.json` changes. Package installation is not transactional: if a network install fails midway, fix the problem and rerun the script. Restart Pi after installation.
+For setup on another machine, package updates, or configuration sync, have the agent read [config/recommended.md](config/recommended.md). It covers Pi and Herdr preferences and links to the reference files. The agent decides which suggestions fit the target machine and merges only applicable, authorized changes. There is no repository installer or automatic preference overwrite. Reload or restart Pi to load installed resources.
 
 ## Bundled resources
 
@@ -91,9 +73,7 @@ Loop publishes background activity through the terminal-status plugin's generic 
 
 ### Global voice-input preference
 
-`config/global-agents.md` is installed into a clearly marked, package-managed block in `~/.pi/agent/AGENTS.md`. This makes the voice-input tolerance rules active by default in every Pi session. Existing instructions outside that block are preserved, and rerunning `install.sh` updates the managed block idempotently.
-
-Pi packages do not natively expose `AGENTS.md` as a manifest resource, so this policy is applied by the installer rather than the `pi.prompts` manifest. After changing or updating `config/global-agents.md`, rerun `install.sh`, then run `/reload` or restart Pi. `pi update --extensions` alone does not refresh this managed block.
+`config/global-agents.md` is an optional reference for global interaction preferences, not an automatically loaded Pi resource. See [config/recommended.md](config/recommended.md) for selective adoption and handling blocks left by the former installer.
 
 ### Automatic session names
 
@@ -123,22 +103,20 @@ Pi packages do not natively expose `AGENTS.md` as a manifest resource, so this p
 - `📖` is a manual bookmark for a valuable conversation to revisit, not an unread-result notification. Viewing the agent does not clear it.
 - Marks and counts live only in memory. Initialization (including reload/resume) starts at `💤` with zero subagents; previous marks and running counts are not restored or written to session history.
 - Any running subagent temporarily replaces the task mark with `🤖`; no count or suffix is displayed. When all subagents finish, the original mark returns. `Alt+M` still changes the underlying mark while the robot is visible.
-- Counting uses `@tintinweb/pi-subagents`'s `subagents:started/completed/failed` events (verified with `0.19.0`), covering top-level foreground/background agents, failure, cancellation, and resume. Queued agents are not counted until they start. That version does **not** expose workflow/nested child lifecycles or a numeric registry API, so those children cannot be counted. The older unscoped `pi-subagents` package in the installer policy uses a different contract and does not provide this counter; it is not replaced automatically.
+- Counting uses `@tintinweb/pi-subagents`'s `subagents:started/completed/failed` events (verified with `0.19.0`), covering top-level foreground/background agents, failure, cancellation, and resume. Queued agents are not counted until they start. That version does **not** expose workflow/nested child lifecycles or a numeric registry API, so those children cannot be counted. The older unscoped `pi-subagents` package in the optional package reference uses a different contract and does not provide this counter; it is not replaced automatically.
 - This changes display metadata only: it never pauses a task or overrides Herdr's actual lifecycle indicator on the first line.
 - Only interactive Pi inside Herdr enables this extension. Reports are scoped to the calling pane and sent on initialization and mark/count/name changes, with fields cleared on normal shutdown. There is no heartbeat or TTL, so a crash may leave stale display metadata.
 - Reports call `pane.report_metadata` directly over the local Herdr socket, without spawning the CLI. Each request has a timeout and increasing sequence number; failures are reported without retries, warning deduplication, or a coalescing queue.
 
-Requires Herdr's `pane.report_metadata` socket support (verified with `0.9.0`). The bundled Herdr config renders `$pi_task_mark` and `$pi_session_name` on Pi's second line, with fixed blue/yellow/purple text colors. Other agents retain their agent label. Re-run `install.sh` after package updates to apply the config, then reload Herdr's config and run `/reload` in Pi. The Herdr-managed `herdr-agent-state.ts` integration is left untouched.
+Requires Herdr's `pane.report_metadata` socket support (verified with `0.9.0`). The bundled Herdr config renders `$pi_task_mark` and `$pi_session_name` on Pi's second line, with fixed blue/yellow/purple text colors. Other agents retain their agent label. For selective adoption after updates, follow [config/recommended.md](config/recommended.md). The Herdr-managed `herdr-agent-state.ts` integration is left untouched.
 
 ### Herdr configuration
 
-`config/herdr/config.toml` is the reproducible Herdr preference file installed by `install.sh`. It includes the Dracula theme, direct workspace/tab/agent navigation keys, the `prefix+a` Pi-agent launcher command, expanded agent-row formatting, and disabled persisted pane history. The launcher binding expects `~/.local/bin/herdr-new-pi` to exist on the target machine; that machine-local helper is not bundled.
+`config/herdr/config.toml` is a reference Herdr preference file, not an automatically installed configuration. It includes the Dracula theme, direct workspace/tab/agent navigation keys, the `prefix+a` Pi-agent launcher command, expanded agent-row formatting, and disabled persisted pane history. The launcher binding expects `~/.local/bin/herdr-new-pi` to exist on the target machine; that machine-local helper is not bundled.
 
 The first agent row shows the state icon, a cyan bold machine label, workspace, and tab; Pi's second row keeps its task mark and session name. Herdr 0.9.0 omits the `machine` token for a single local machine. Separators are controlled by Herdr, not this config. Both the default `rows` and `rows_by_agent.pi` include the machine token.
 
-To sync only the sidebar on another machine, back up its `~/.config/herdr/config.toml`, then replace the `[ui.sidebar.agents]` and `[ui.sidebar.agents.rows_by_agent]` sections with those from `config/herdr/config.toml` (merge any machine-specific agent overrides deliberately). Run `herdr server reload-config` to apply without stopping the session. Running `install.sh` instead installs the entire preference file, not just the sidebar. Saved machine profiles and SSH credentials are not included.
-
-Set `PACKAGE_HERDR_CONFIG_TARGET` when running the installer to write the config somewhere other than `~/.config/herdr/config.toml`.
+For selective sidebar sync, compatibility checks, and reload instructions, read [config/recommended.md](config/recommended.md). Saved machine profiles and SSH credentials are not included.
 
 ### Prompts and theme
 
@@ -150,7 +128,7 @@ Prompt templates:
 
 Bundled themes:
 
-- `slop` (the installer-selected default)
+- `slop` (recommended)
 - `flexoki-dark`
 - `everforest-dark-hard`
 - `gruvbox-dark`
@@ -162,7 +140,7 @@ Bundled themes:
 - `vesper`
 - `poimandres`
 
-They are ordinary package themes discovered from `themes/`. `install.sh` selects `slop` globally; users can select any bundled theme later through `/settings`.
+They are ordinary package themes discovered from `themes/`. Select a theme through `/settings`; installing or updating the package does not change the selected theme.
 
 ## Updates
 
@@ -171,6 +149,8 @@ Pi manages all registered unpinned packages:
 ```bash
 pi update --extensions
 ```
+
+After updating, ask the agent to review [config/recommended.md](config/recommended.md) against this machine's setup and adopt only relevant changes. Updating resources does not apply reference configuration.
 
 ## Development
 

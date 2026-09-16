@@ -11,7 +11,6 @@
     "prompts",
     "themes",
     "config",
-    "install.sh",
     "README.md",
     "LICENSE",
     "THIRD_PARTY_NOTICES.md"
@@ -20,7 +19,7 @@
     "check": "tsc --noEmit",
     "test": "vitest run && npm run test:memory",
     "test:memory": "node --test test/*.node-test.ts",
-    "pack:check": "vitest run test/manifest.test.ts test/pack.test.ts test/source-boundary.test.ts test/install.test.ts"
+    "pack:check": "vitest run test/manifest.test.ts test/pack.test.ts test/source-boundary.test.ts test/recommended-config.test.ts"
   },
   "pi": {
     "extensions": [
