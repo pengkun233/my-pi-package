@@ -1,10 +1,21 @@
 import { randomUUID } from "node:crypto";
+import * as piAI from "@earendil-works/pi-ai";
 import { visibleWidth } from "@earendil-works/pi-tui";
 import type { ExtensionContext, SessionEntry } from "@earendil-works/pi-coding-agent";
 
 import { loadNamingConfig } from "./config.js";
 export const MAX_CONTEXT_CHARS = 6000;
 export const MAX_TITLE_COLUMNS = 16;
+
+type ProviderContext = Parameters<piAI.Provider["streamSimple"]>[1];
+
+function normalizeContext(context: piAI.Context): ProviderContext {
+  // Pi >= 0.86 expects transcript messages; older providers read systemPrompt directly.
+  const normalize = (piAI as unknown as {
+    normalizeContext?: (context: piAI.Context) => ProviderContext;
+  }).normalizeContext;
+  return typeof normalize === "function" ? normalize(context) : context as ProviderContext;
+}
 
 function text(content: unknown): string {
   if (typeof content === "string") return content;
@@ -53,7 +64,7 @@ export async function generateTitle(
   // One semantic rewrite for over-budget output; never retry network/provider errors.
   for (let attempt = 0; attempt < 2; attempt++) {
     signal.throwIfAborted();
-    const response = await provider.streamSimple(model, {
+    const response = await provider.streamSimple(model, normalizeContext({
       systemPrompt: [
       "Generate a concise session title from the supplied conversation data. Output ONLY the title, no explanation or quotes. Use the user's language.",
       "Keep a complete title within 16 display columns (8 Chinese characters). Count each Chinese character or full-width punctuation mark as 2 columns, and each ASCII letter, digit, space or punctuation mark as 1 column; add these widths for mixed-language titles. This is a hard maximum for the entire title, not a target: keep titles as concise as possible. Herdr may truncate longer titles, so put the concrete task's distinguishing meaning first, not a generic chat label.",
@@ -72,7 +83,7 @@ export async function generateTitle(
         }),
         timestamp: Date.now(),
       }],
-    }, {
+    }), {
       apiKey: auth.apiKey, headers: auth.headers, env: auth.env,
       reasoning: config.reasoning === "off" ? undefined : config.reasoning, maxTokens: 1024, signal, maxRetries: 0,
       timeoutMs: 30_000, transport: "sse", cacheRetention: "none", sessionId: randomUUID(),
