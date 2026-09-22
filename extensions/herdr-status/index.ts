@@ -47,6 +47,16 @@ export default function herdrStatus(pi: ExtensionAPI): void {
     return { action: "continue" };
   });
 
+  pi.on("agent_start", () => {
+    // Automatic continuations resume work without clearing manual bookmarks.
+    if (mark === "done") setMark("working");
+  });
+
+  pi.on("agent_settled", () => {
+    // agent_end can precede retries or queued follow-ups; wait for final idle.
+    if (mark === "working") setMark("done");
+  });
+
   pi.registerShortcut("alt+m", {
     description: "Herdr task mark: review / sleep",
     handler: async () => { setMark(nextMark(mark)); },

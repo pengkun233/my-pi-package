@@ -1,9 +1,10 @@
-export type TaskMark = "working" | "sleeping" | "review";
+export type TaskMark = "working" | "sleeping" | "review" | "done";
 
 export const MARK_ICONS: Record<TaskMark, string> = {
   working: "🚀",
   sleeping: "💤",
   review: "📖",
+  done: "✅",
 };
 
 export function nextMark(mark: TaskMark): TaskMark {

@@ -105,14 +105,15 @@ All fields are optional and default to the values above. `reasoning` accepts `of
 
 ```text
 🚀 #123 修复登录超时
+✅ #123 修复登录超时
 💤 #123 修复登录超时
 📖 #123 修复登录超时
 🤖 #123 修复登录超时
 ```
 
 - The purple title mirrors Pi's session name on startup and every rename, including manual `/name`; unnamed sessions hide the title. Herdr never generates or independently stores a task name.
-- Sending a message switches to `🚀`; finishing a response does not change the mark.
-- `Alt+M` switches `🚀 → 📖`, then cycles `📖 ↔ 💤`.
+- Sending a message switches to `🚀`; when the main agent fully settles (after retries and queued follow-ups), `🚀` automatically becomes `✅`. This means the run has ended, not that its result was verified successful. Automatic continuations change `✅` back to `🚀`. Manually selected `📖` / `💤` marks are preserved.
+- `Alt+M` switches `🚀` / `✅ → 📖`, then cycles `📖 ↔ 💤`.
 - `📖` is a manual bookmark for a valuable conversation to revisit, not an unread-result notification. Viewing the agent does not clear it.
 - Marks and counts live only in memory. Initialization (including reload/resume) starts at `💤` with zero subagents; previous marks and running counts are not restored or written to session history.
 - Any running subagent temporarily replaces the task mark with `🤖`; no count or suffix is displayed. When all subagents finish, the original mark returns. `Alt+M` still changes the underlying mark while the robot is visible.

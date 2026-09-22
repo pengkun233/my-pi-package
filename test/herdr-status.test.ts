@@ -73,18 +73,24 @@ describe("Herdr sidebar extension", () => {
     await h.emit("session_shutdown");
   });
 
-  it("starts asleep, marks user input working, ignores completion and cycles manually", async () => {
+  it("starts asleep, marks user input working, completes only when settled and cycles manually", async () => {
     const h = harness();
     expect(send).not.toHaveBeenCalled();
     await h.emit("session_start");
     expect(h.last()?.pi_task_mark).toBe("💤");
     await h.emit("input", { source: "interactive", text: "hello" });
     expect(h.last()?.pi_task_mark).toBe("🚀");
-    await h.emit("agent_end"); await h.emit("agent_settled");
+    await h.emit("agent_end");
     expect(send).toHaveBeenCalledTimes(2);
+    expect(h.last()?.pi_task_mark).toBe("🚀");
+    await h.emit("agent_settled");
+    expect(h.last()?.pi_task_mark).toBe("✅");
+    await h.emit("agent_settled");
+    expect(send).toHaveBeenCalledTimes(3);
     await h.shortcut(); expect(h.last()?.pi_task_mark).toBe("📖");
     await h.emit("input", { source: "extension", text: "agent completed" });
-    expect(send).toHaveBeenCalledTimes(3);
+    await h.emit("agent_start"); await h.emit("agent_settled");
+    expect(send).toHaveBeenCalledTimes(4);
     await h.shortcut(); expect(h.last()?.pi_task_mark).toBe("💤");
     await h.shortcut(); expect(h.last()?.pi_task_mark).toBe("📖");
     await h.emit("input", { source: "rpc", text: "continue" });
@@ -94,6 +100,44 @@ describe("Herdr sidebar extension", () => {
     expect(send).toHaveBeenCalledTimes(calls);
     expect(h.appendEntry).not.toHaveBeenCalled();
     expect(h.exec).not.toHaveBeenCalled();
+    await h.emit("session_shutdown");
+  });
+
+  it("resumes completed work for automatic continuations and new user input", async () => {
+    const h = harness(); await h.emit("session_start");
+    await h.emit("input", { source: "interactive" });
+    await h.emit("agent_settled");
+    expect(h.last()?.pi_task_mark).toBe("✅");
+    await h.emit("input", { source: "extension" });
+    await h.emit("agent_start");
+    expect(h.last()?.pi_task_mark).toBe("🚀");
+    await h.emit("agent_settled");
+    expect(h.last()?.pi_task_mark).toBe("✅");
+    await h.emit("input", { source: "interactive" });
+    expect(h.last()?.pi_task_mark).toBe("🚀");
+    await h.emit("session_shutdown");
+  });
+
+  it.each([1, 2])("preserves manual marks selected during work (%i presses)", async (presses) => {
+    const h = harness(); await h.emit("session_start");
+    await h.emit("input", { source: "interactive" });
+    for (let i = 0; i < presses; i++) await h.shortcut();
+    await h.emit("agent_start"); await h.emit("agent_settled");
+    expect(h.last()?.pi_task_mark).toBe(presses === 1 ? "📖" : "💤");
+    await h.emit("session_shutdown");
+  });
+
+  it("keeps the robot visible until the last subagent ends, then reveals done", async () => {
+    const h = harness(); await h.emit("session_start");
+    await h.emit("input", { source: "interactive" });
+    await h.event("subagents:started", { id: "a" });
+    await h.event("subagents:started", { id: "b" });
+    await h.emit("agent_settled");
+    expect(h.last()?.pi_task_mark).toBe("🤖");
+    await h.event("subagents:completed", { id: "a" });
+    expect(h.last()?.pi_task_mark).toBe("🤖");
+    await h.event("subagents:failed", { id: "b" });
+    expect(h.last()?.pi_task_mark).toBe("✅");
     await h.emit("session_shutdown");
   });
 
@@ -151,6 +195,7 @@ describe("Herdr sidebar extension", () => {
   it.each(["rpc", "print", "json"])("does nothing in inherited %s child sessions", async (mode) => {
     const h = harness(mode); await h.emit("session_start");
     await h.emit("input", { source: "rpc" }); await h.shortcut();
+    await h.emit("agent_start"); await h.emit("agent_settled");
     await h.emit("session_info_changed", { name: "Child name" });
     await h.event("subagents:started", { id: "child" });
     await h.emit("session_shutdown");
