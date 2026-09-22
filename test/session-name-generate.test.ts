@@ -68,10 +68,18 @@ describe("session-name generation", () => {
     expect(retry).toMatchObject({ conversation: "original task", previousTitle: "Old", rejectedTitle: title });
   });
 
-  it("rejects repeated over-budget output after one rewrite", async () => {
+  it("accepts repeated over-budget output after one rewrite as a soft fallback", async () => {
     const { ctx, streamSimple } = context();
     streamSimple.mockReturnValue({ result: async () => ({ stopReason: "stop", content: "测试自动起名插件功能" }) });
-    await expect(generateTitle(ctx, "x", undefined, signal())).rejects.toThrow("16 display columns");
+    await expect(generateTitle(ctx, "x", undefined, signal())).resolves.toBe("测试自动起名插件功能");
+    expect(streamSimple).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects an empty second title after an over-budget rewrite", async () => {
+    const { ctx, streamSimple } = context();
+    streamSimple.mockReturnValueOnce({ result: async () => ({ stopReason: "stop", content: "测试自动起名插件功能" }) })
+      .mockReturnValueOnce({ result: async () => ({ stopReason: "stop", content: " \n " }) });
+    await expect(generateTitle(ctx, "x", undefined, signal())).rejects.toThrow("empty title");
     expect(streamSimple).toHaveBeenCalledTimes(2);
   });
 

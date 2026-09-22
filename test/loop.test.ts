@@ -6,6 +6,16 @@ import {
   setupLoop,
 } from "../extensions/loop/index.js";
 import { TERMINAL_BACKGROUND_ACTIVITY_EVENT } from "../extensions/ui/terminal-status-events.js";
+import type { PatrolResult } from "../extensions/loop/patrol.js";
+
+vi.mock("../extensions/loop/patrol.js", () => ({
+  runPatrol: vi.fn(),
+  loadPatrolConfig: (overrides: object) => ({
+    patrolModel: "openai-codex/gpt-5.6-luna",
+    patrolThinking: "medium",
+    ...overrides,
+  }),
+}));
 
 afterEach(() => {
   vi.useRealTimers();
@@ -18,6 +28,8 @@ function harness() {
   const notify = vi.fn();
   const setStatus = vi.fn();
   const sendUserMessage = vi.fn();
+  const sendMessage = vi.fn();
+  const patrol = vi.fn(async (_options: any): Promise<PatrolResult> => ({ outcome: "continue", summary: "Still running" }));
   const emit = vi.fn();
   let idle = true;
   const pi: any = {
@@ -25,15 +37,17 @@ function harness() {
     registerCommand: (name: string, options: any) => commands.set(name, options),
     registerTool: (options: any) => tools.set(options.name, options),
     sendUserMessage,
+    sendMessage,
     events: { emit, on: vi.fn() },
   };
   const ctx: any = {
     hasUI: true,
     mode: "tui",
+    cwd: "/project",
     isIdle: () => idle,
     ui: { notify, setStatus },
   };
-  setupLoop(pi);
+  setupLoop(pi, patrol);
   return {
     handlers,
     commands,
@@ -42,6 +56,8 @@ function harness() {
     notify,
     setStatus,
     sendUserMessage,
+    sendMessage,
+    patrol,
     emit,
     setIdle(value: boolean) { idle = value; },
   };
@@ -104,9 +120,14 @@ describe("Loop extension", () => {
     });
     expect(vi.getTimerCount()).toBe(1);
     await vi.advanceTimersByTimeAsync(59_999);
-    expect(h.sendUserMessage).not.toHaveBeenCalled();
+    expect(h.patrol).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(1);
-    expect(h.sendUserMessage).toHaveBeenCalledWith("check deploy");
+    expect(h.patrol).toHaveBeenCalledWith(expect.objectContaining({
+      prompt: "check deploy", cwd: "/project",
+      patrolModel: "openai-codex/gpt-5.6-luna", patrolThinking: "medium",
+    }));
+    expect(h.sendUserMessage).not.toHaveBeenCalled();
+    expect(h.sendMessage).not.toHaveBeenCalled();
     expect(h.setStatus).toHaveBeenLastCalledWith(
       "loop",
       "↻ 1m · 12:02",
@@ -131,11 +152,12 @@ describe("Loop extension", () => {
     vi.setSystemTime(new Date("2026-08-04T04:00:00Z"));
     const h = harness();
     h.handlers.get("session_start")!({ reason: "startup" }, h.ctx);
-    const prompt = "Check the deploy. When it succeeds, call loop_stop; otherwise report its state.";
+    const prompt = "Check the deploy log at /tmp/deploy.log. Finish when it succeeds.";
 
     const started = await h.tools.get("loop_start").execute(
       "start",
-      { intervalMinutes: 60, prompt, maxRuns: 3, timeoutMinutes: 180 },
+      { intervalMinutes: 60, prompt, maxRuns: 3, timeoutMinutes: 180,
+        patrolModel: "openai/another-model", patrolThinking: "low", probeCommand: "git status --short" },
       undefined,
       undefined,
       h.ctx,
@@ -152,7 +174,9 @@ describe("Loop extension", () => {
     expect(h.tools.get("loop_stop").executionMode).toBe("sequential");
 
     await vi.advanceTimersByTimeAsync(60 * 60_000);
-    expect(h.sendUserMessage).toHaveBeenCalledWith(prompt);
+    expect(h.patrol).toHaveBeenCalledWith(expect.objectContaining({
+      prompt, patrolModel: "openai/another-model", patrolThinking: "low", probeCommand: "git status --short",
+    }));
 
     const status = await h.tools.get("loop_status").execute(
       "status",
@@ -180,7 +204,7 @@ describe("Loop extension", () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it("counts successful dispatches and stops at maxRuns", async () => {
+  it("checks while the main model is busy and notifies at maxRuns", async () => {
     vi.useFakeTimers();
     const h = harness();
     h.handlers.get("session_start")!({ reason: "startup" }, h.ctx);
@@ -194,12 +218,17 @@ describe("Loop extension", () => {
     );
 
     await vi.advanceTimersByTimeAsync(60_000);
-    expect(h.sendUserMessage).not.toHaveBeenCalled();
+    expect(h.patrol).toHaveBeenCalledTimes(1);
+    expect(h.sendMessage).not.toHaveBeenCalled();
 
-    h.setIdle(true);
-    await vi.advanceTimersByTimeAsync(120_000);
-    expect(h.sendUserMessage).toHaveBeenCalledTimes(2);
-    expect(h.notify).toHaveBeenLastCalledWith("Loop stopped after 2 runs.", "info");
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(h.patrol).toHaveBeenCalledTimes(2);
+    expect(h.sendUserMessage).not.toHaveBeenCalled();
+    expect(h.sendMessage).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ customType: "loop-result", display: true,
+        content: expect.stringContaining("Check limit reached (2 checks); completion was not confirmed.") }),
+      { triggerTurn: true, deliverAs: "followUp" },
+    );
     expect(h.setStatus).toHaveBeenLastCalledWith("loop", undefined);
     expect(vi.getTimerCount()).toBe(0);
   });
@@ -221,7 +250,11 @@ describe("Loop extension", () => {
     expect(vi.getTimerCount()).toBe(1);
     await vi.advanceTimersByTimeAsync(1);
     expect(h.sendUserMessage).not.toHaveBeenCalled();
-    expect(h.notify).toHaveBeenLastCalledWith("Loop stopped after reaching its timeout.", "info");
+    expect(h.patrol).not.toHaveBeenCalled();
+    expect(h.sendMessage).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ content: expect.stringContaining("Time limit reached; completion was not confirmed.") }),
+      { triggerTurn: true, deliverAs: "followUp" },
+    );
     expect(vi.getTimerCount()).toBe(0);
 
     const status = await h.tools.get("loop_status").execute(
@@ -234,7 +267,7 @@ describe("Loop extension", () => {
     expect(status.details).toEqual({ active: false });
   });
 
-  it("skips a busy tick and discards the timer on session shutdown", async () => {
+  it("runs busy ticks silently and discards the timer on session shutdown", async () => {
     vi.useFakeTimers();
     const h = harness();
     h.handlers.get("session_start")!({ reason: "startup" }, h.ctx);
@@ -244,9 +277,11 @@ describe("Loop extension", () => {
     await vi.advanceTimersByTimeAsync(60_000);
     expect(h.sendUserMessage).not.toHaveBeenCalled();
 
+    expect(h.patrol).toHaveBeenCalledTimes(1);
     h.setIdle(true);
     await vi.advanceTimersByTimeAsync(60_000);
-    expect(h.sendUserMessage).toHaveBeenCalledTimes(1);
+    expect(h.patrol).toHaveBeenCalledTimes(2);
+    expect(h.sendMessage).not.toHaveBeenCalled();
 
     h.handlers.get("session_shutdown")!({ reason: "reload" }, h.ctx);
     expect(vi.getTimerCount()).toBe(0);
@@ -284,6 +319,90 @@ describe("Loop extension", () => {
       "↻ 2m · 12:02",
     );
     h.handlers.get("session_shutdown")!({ reason: "quit" }, replacementCtx);
+  });
+
+  it.each(["complete", "alert"] as const)("notifies the main conversation once for %s", async (outcome) => {
+    vi.useFakeTimers();
+    const h = harness();
+    h.patrol.mockResolvedValue({ outcome, summary: "Deploy finished", evidence: "deploy.log: success" });
+    h.handlers.get("session_start")!({}, h.ctx);
+    // A completion on the last allowed check wins over the count limit.
+    await h.tools.get("loop_start").execute("start", { intervalMinutes: 1, prompt: "check deploy", maxRuns: 1 }, undefined, undefined, h.ctx);
+    await vi.advanceTimersByTimeAsync(180_000);
+    expect(h.patrol).toHaveBeenCalledTimes(1);
+    expect(h.sendMessage).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ content: expect.stringContaining(`${outcome === "complete" ? "Completed" : "Needs attention"}: Deploy finished\ndeploy.log: success`) }),
+      { triggerTurn: true, deliverAs: "followUp" },
+    );
+    expect(h.sendMessage.mock.calls[0][0].content).not.toContain("Check limit reached");
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("stops and notifies on a patrol error without retrying", async () => {
+    vi.useFakeTimers();
+    const h = harness();
+    h.patrol.mockRejectedValue(new Error("Provider unavailable"));
+    h.handlers.get("session_start")!({}, h.ctx);
+    await h.commands.get("loop").handler("1m check deploy", h.ctx);
+    await vi.advanceTimersByTimeAsync(180_000);
+    expect(h.patrol).toHaveBeenCalledTimes(1);
+    expect(h.sendMessage).toHaveBeenCalledTimes(1);
+    expect(h.sendMessage.mock.calls[0][0].content).toContain("Monitoring stopped: Provider unavailable");
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("does not overlap a slow check and schedules from its completion", async () => {
+    vi.useFakeTimers();
+    const h = harness();
+    let complete!: (result: PatrolResult) => void;
+    h.patrol.mockImplementationOnce(() => new Promise((resolve) => { complete = resolve; }));
+    h.handlers.get("session_start")!({}, h.ctx);
+    await h.commands.get("loop").handler("1m check deploy", h.ctx);
+    await vi.advanceTimersByTimeAsync(150_000);
+    expect(h.patrol).toHaveBeenCalledTimes(1);
+    complete({ outcome: "continue", summary: "Running" });
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(59_999);
+    expect(h.patrol).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(h.patrol).toHaveBeenCalledTimes(2);
+    h.handlers.get("session_shutdown")!({}, h.ctx);
+  });
+
+  it.each(["stop", "shutdown"])("cancels an in-flight check on %s and ignores its late result", async (action) => {
+    vi.useFakeTimers();
+    const h = harness();
+    let complete!: (result: PatrolResult) => void;
+    h.patrol.mockImplementationOnce(() => new Promise((resolve) => { complete = resolve; }));
+    h.handlers.get("session_start")!({}, h.ctx);
+    await h.commands.get("loop").handler("1m old task", h.ctx);
+    await vi.advanceTimersByTimeAsync(60_000);
+    const signal = h.patrol.mock.calls[0][0].signal as AbortSignal;
+    if (action === "stop") await h.commands.get("loop").handler("stop", h.ctx);
+    else h.handlers.get("session_shutdown")!({}, h.ctx);
+    expect(signal.aborted).toBe(true);
+    if (action === "stop") await h.commands.get("loop").handler("1m new task", h.ctx);
+    complete({ outcome: "complete", summary: "Old task completed" });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(h.sendMessage).not.toHaveBeenCalled();
+    h.handlers.get("session_shutdown")!({}, h.ctx);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it.each([undefined, 2])("cancels a stuck check at its deadline (loop timeout: %s)", async (timeoutMinutes) => {
+    vi.useFakeTimers();
+    const h = harness();
+    h.patrol.mockImplementation(({ signal }) => new Promise((_resolve, reject) => {
+      signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+    }));
+    h.handlers.get("session_start")!({}, h.ctx);
+    await h.tools.get("loop_start").execute("start", { intervalMinutes: 1, prompt: "check deploy", timeoutMinutes }, undefined, undefined, h.ctx);
+    await vi.advanceTimersByTimeAsync(timeoutMinutes === undefined ? 180_000 : 120_000);
+    expect(h.patrol).toHaveBeenCalledTimes(1);
+    expect(h.patrol.mock.calls[0][0].signal.aborted).toBe(true);
+    expect(h.sendMessage).toHaveBeenCalledTimes(1);
+    expect(h.sendMessage.mock.calls[0][0].content).toContain(timeoutMinutes === undefined ? "Loop check timed out" : "Loop time limit reached");
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it("rejects replacement and non-TUI use", async () => {

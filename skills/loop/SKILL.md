@@ -1,6 +1,6 @@
 ---
 name: loop
-description: Schedule and control session-scoped repeated checks. Use when the user wants monitoring or another action run on an interval, asks for the active Loop's status, or asks to stop future checks.
+description: Schedule and control session-scoped background monitoring. Use when the user wants checks run on an interval, asks for the active Loop's status, or asks to stop future checks.
 ---
 
 # Loop
@@ -9,18 +9,18 @@ Route the request to start, status, or stop.
 
 ## Start
 
-1. Resolve the repeated action, interval, and either an observable completion condition or intentional open-endedness. Ask one focused question when any required part is ambiguous.
+1. Resolve what to monitor, the interval, and the completion condition (or intentional open-endedness). Ask one focused question if a required part is ambiguous.
 2. Convert the interval to whole minutes from 1 through 10080. Pass `maxRuns` or `timeoutMinutes` only when the user supplies that limit.
-3. Write a self-contained check prompt that names the action or state to inspect. For monitored work, add the observable completion condition and `Call loop_stop with the reason when the condition is met; otherwise report the current state.` For intentionally open-ended repetition, state that it continues until the user stops the Loop.
-4. Call `loop_start`. A successful tool result completes scheduling; report the cadence and any limit, then finish the turn.
+3. Write a self-contained prompt for an independent patrol model: include the target, concrete file paths or other observations, completion condition, and when the main conversation should intervene. It has no main-conversation history and can use `read`, `grep`, `find`, and `ls`. For command-based observations, pass a read-only `probeCommand`; its output and exit code are supplied before each check.
+4. Call `loop_start`. Use configured model defaults unless the user requests a `patrolModel` or `patrolThinking` override. Report the cadence and any limit, then finish the turn.
 
-## Check
+The patrol model decides whether to continue, finish, or request attention. The plugin stops and notifies the main conversation automatically; normal continuing checks remain silent. Loop monitors work rather than periodically performing write actions.
 
-When a Loop check arrives, perform the stored prompt. If its completion condition is met, call `loop_stop` with the reason before reporting the final result. A “No active Loop” result means it was already stopped, for example by a configured limit or explicit cancellation, so report the final result without guessing which one. Otherwise report the current state; a configured limit may stop the Loop after this check.
+## Result notification
 
-The check is complete only after the required inspection ran, the current state was reported, and `loop_stop` was attempted when the completion condition was met.
+Report the result to the user. The Loop has already stopped; another `loop_stop` call is unnecessary. A check/time limit or monitoring error does not mean the monitored task completed.
 
 ## Status or stop
 
 - For status, call `loop_status` and report its result.
-- For cancellation, call `loop_stop` with the user's reason when available.
+- For cancellation, call `loop_stop` with the user's reason when available. This also cancels a check already in progress.

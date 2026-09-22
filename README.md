@@ -45,17 +45,30 @@ The package defaults remain authoritative when those files are absent or invalid
 
 ### Loop
 
-`extensions/loop/` provides one in-memory repeating prompt for the current interactive session:
+`extensions/loop/` provides one in-memory background patrol for the current interactive session:
 
 - natural-language requests are the primary interface, for example: “Check the deploy every 5 minutes and stop when it succeeds” or “Stop the current Loop”;
-- the `loop` skill creates a self-contained check with an observable completion condition, and the agent calls `loop_stop` as soon as that condition is met;
-- requests may optionally limit the Loop by successful check count or elapsed time;
-- `/loop 5m check the deploy`, `/loop status`, and `/loop stop` remain available as the original direct interface;
-- status shows the prompt, interval, dispatched check count, creation time, next run, and configured bounds;
-- the footer shows a compact text status such as `↻ 5m · 09:30`; next-day runs include the date, for example `↻ 5m · 08-05 09:30`;
-- all displayed creation, next-run, and expiry times use Beijing time (`UTC+8`), independent of the machine's local timezone;
-- a tick is skipped when the main agent is busy, and all Loop state and footer status are discarded on reload or session shutdown;
-- stopping cancels future runs without aborting work already in progress.
+- the `loop` skill supplies a self-contained check: what to inspect, where to find it, and when it is complete or needs attention;
+- each check starts a fresh Pi subprocess with `read`, `grep`, `find`, and `ls`, without the main conversation, extensions, skills, templates, or context files;
+- the patrol model decides `continue`, `complete`, or `alert`. Continuing checks stay silent; completion, alerts, configured limits, and errors stop the Loop and send a result to the main conversation, triggering a reply (queued as a follow-up when busy);
+- `loop_start` optionally accepts `maxRuns`, `timeoutMinutes`, model/thinking overrides, and a `probeCommand`: a read-only shell command whose stdout, stderr, and exit code are supplied to the checker. Nonzero exit codes are observations for the model to interpret;
+- `/loop 5m check the deploy`, `/loop status`, and `/loop stop` remain available;
+- status shows the prompt, model, interval, check count, creation time, next run, and configured bounds;
+- the footer shows `↻ 5m · 09:30` while waiting and `↻ 5m · checking` during a check; next-day runs include the date;
+- all displayed times use Beijing time (`UTC+8`), independent of the machine's local timezone;
+- checks run even when the main agent is busy. The next interval starts after the previous check finishes, so checks never overlap. Each check (including its probe) has a two-minute timeout, shortened by the Loop's remaining time limit;
+- explicit stop cancels the current checker and future runs. Reload and session shutdown also cancel and discard the Loop; they do not resume it or send an extra completion notification.
+
+Configure defaults in `~/.pi/agent/loop.json` (or `$PI_CODING_AGENT_DIR/loop.json`):
+
+```json
+{
+  "patrolModel": "openai-codex/gpt-5.6-luna",
+  "patrolThinking": "medium"
+}
+```
+
+Both fields are optional. `loop_start` parameters of the same names override the file, which is read when a Loop starts. Use a thinking level supported by the model (`off`, `minimal`, `low`, `medium`, `high`, `xhigh`, or `max`). The subprocess uses existing Pi credentials and built-in or `models.json` providers; extension-registered providers are not loaded. Background checks consume provider quota separately from the main turn. Probe commands are trusted shell commands, not sandboxed or automatically checked for read-only behavior.
 
 Loop publishes background activity through the terminal-status plugin's generic event contract. The terminal-tab title shows `🟣 等待中` whenever a Loop is active or a foreground/background `pi-subagents` run is detected. Input-required and error states retain higher priority.
 
@@ -81,7 +94,7 @@ Loop publishes background activity through the terminal-status plugin's generic 
 
 - A separate asynchronous request (default: `openai-codex / gpt-5.6-luna`, `low` reasoning) runs on the first nonempty interactive message, then messages 11, 21, and so on. Empty, extension-generated, and headless/RPC inputs do not count.
 - Requests use the configured provider's existing Pi credentials, the previous title, and at most 6,000 characters of recent user/assistant text. Tools, reasoning, images and system prompts are excluded. Issue numbers are preserved when available; this extension does not fetch GitLab issues itself.
-- Generated titles must fit within 16 display columns (8 Chinese characters): Chinese characters/full-width punctuation count as 2 columns; ASCII letters, digits, spaces and punctuation count as 1. Mixed titles use the summed width; shorter is still preferred. The entire title, including descriptions and issue numbers, is validated with Pi's display-width helper. Over-budget output gets one model rewrite, never blind truncation; if it still exceeds the budget, naming fails and the current name is kept. Unchanged tasks keep their previous title only if it already meets these brevity rules.
+- Generated titles target 16 display columns (8 Chinese characters): Chinese characters/full-width punctuation count as 2 columns; ASCII letters, digits, spaces and punctuation count as 1. Mixed titles use the summed width; shorter is still preferred. The entire title, including descriptions and issue numbers, is measured with Pi's display-width helper. Over-budget output gets one model rewrite, never blind truncation; if it still exceeds the budget, the rewritten title is accepted without a width warning. The prompt still encourages concise titles and shortening over-budget previous names.
 - No naming tools or instructions are added to the main conversation. Background requests consume their own provider quota and are not included in the main turn's usage totals.
 - Titles and counters persist with the session. `/name` (or another explicit rename) immediately disables automatic overwrites for that session, including after reload/resume. Existing named sessions are preserved.
 - Only one request runs at a time; overlapping scheduled updates coalesce. Requests have a 45-second deadline, are cancelled on shutdown/tree navigation, and cannot overwrite a manual rename or a replacement session. Failures keep the current title and wait for the next scheduled interval; warnings are shown at most once per load.

@@ -4,9 +4,12 @@ import type {
   ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
+import { StringEnum } from "@earendil-works/pi-ai";
+import { loadPatrolConfig, runPatrol, type PatrolConfig } from "./patrol.js";
 import { setTerminalBackgroundActivity } from "../ui/terminal-status-events.js";
 
 const LOOP_STATUS_ID = "loop";
+const CHECK_TIMEOUT_MS = 120_000;
 const BEIJING_OFFSET_MS = 8 * 60 * 60_000;
 const MIN_INTERVAL_MS = 60_000;
 const MAX_INTERVAL_MS = 7 * 24 * 60 * 60_000;
@@ -16,15 +19,16 @@ const UNIT_MS = {
   d: 24 * 60 * 60_000,
 } as const;
 
-export interface LoopDefinition {
+export interface LoopDefinition extends Partial<PatrolConfig> {
   intervalMs: number;
   intervalLabel: string;
   prompt: string;
   maxRuns?: number;
   timeoutMs?: number;
+  probeCommand?: string;
 }
 
-export interface LoopStatus {
+export interface LoopStatus extends PatrolConfig {
   active: true;
   intervalLabel: string;
   prompt: string;
@@ -33,6 +37,7 @@ export interface LoopStatus {
   runs: number;
   maxRuns?: number;
   expiresAt?: number;
+  probeCommand?: string;
 }
 
 export type LoopDefinitionResult =
@@ -67,6 +72,8 @@ export function formatBeijingFooterTime(timestamp: number, now = Date.now()): st
 }
 
 interface ActiveLoop extends LoopDefinition {
+  patrolModel: string;
+  patrolThinking: PatrolConfig["patrolThinking"];
   createdAt: number;
   nextRunAt: number;
   runs: number;
@@ -118,8 +125,12 @@ export class LoopService {
   private context?: ExtensionContext;
   private activeLoop?: ActiveLoop;
   private timer?: ReturnType<typeof setTimeout>;
+  private checkController?: AbortController;
 
-  constructor(private readonly pi: ExtensionAPI) {}
+  constructor(
+    private readonly pi: ExtensionAPI,
+    private readonly patrol: typeof runPatrol = runPatrol,
+  ) {}
 
   sessionStart(ctx: ExtensionContext): void {
     this.dispose();
@@ -167,9 +178,14 @@ export class LoopService {
       throw new Error("A Loop is already active. Stop it before creating another one.");
     }
 
+    const config = loadPatrolConfig({
+      ...(definition.patrolModel === undefined ? {} : { patrolModel: definition.patrolModel }),
+      ...(definition.patrolThinking === undefined ? {} : { patrolThinking: definition.patrolThinking }),
+    });
     const now = Date.now();
     this.activeLoop = {
       ...definition,
+      ...config,
       createdAt: now,
       nextRunAt: now + definition.intervalMs,
       runs: 0,
@@ -197,6 +213,9 @@ export class LoopService {
       runs: loop.runs,
       maxRuns: loop.maxRuns,
       expiresAt: loop.expiresAt,
+      patrolModel: loop.patrolModel,
+      patrolThinking: loop.patrolThinking,
+      probeCommand: loop.probeCommand,
     };
   }
 
@@ -207,9 +226,10 @@ export class LoopService {
       "Loop active",
       `Interval: ${loop.intervalLabel}`,
       `Prompt: ${loop.prompt}`,
+      `Model: ${loop.patrolModel} (${loop.patrolThinking})`,
       `Runs: ${loop.runs}${loop.maxRuns === undefined ? "" : ` / ${loop.maxRuns}`}`,
       `Created: ${this.formatTime(loop.createdAt)}`,
-      `Next run: ${this.formatTime(loop.nextRunAt)}`,
+      this.checkController ? "Check in progress" : `Next run: ${this.formatTime(loop.nextRunAt)}`,
     ];
     if (loop.expiresAt !== undefined) lines.push(`Expires: ${this.formatTime(loop.expiresAt)}`);
     return lines.join("\n");
@@ -226,41 +246,77 @@ export class LoopService {
     return true;
   }
 
-  private onTimer(): void {
+  private async onTimer(): Promise<void> {
     this.timer = undefined;
     const loop = this.activeLoop;
     const ctx = this.context;
     if (!loop || !ctx) return;
 
-    const now = Date.now();
-    if (loop.expiresAt !== undefined && now >= loop.expiresAt) {
-      this.clearLoop();
-      ctx.ui.notify("Loop stopped after reaching its timeout.", "info");
+    if (loop.expiresAt !== undefined && Date.now() >= loop.expiresAt) {
+      this.finishLoop(loop, "Time limit reached; completion was not confirmed.");
       return;
     }
 
-    loop.nextRunAt = now + loop.intervalMs;
-    if (!ctx.isIdle()) {
-      this.armTimer();
-      this.renderFooterStatus();
-      return;
-    }
+    const controller = new AbortController();
+    this.checkController = controller;
+    const remaining = loop.expiresAt === undefined ? Infinity : loop.expiresAt - Date.now();
+    const deadline = setTimeout(() => controller.abort(new Error(
+      remaining <= CHECK_TIMEOUT_MS ? "Loop time limit reached; completion was not confirmed." : "Loop check timed out.",
+    )), Math.min(CHECK_TIMEOUT_MS, remaining));
+    deadline.unref?.();
+    loop.runs += 1;
+    this.renderFooterStatus();
 
     try {
-      this.pi.sendUserMessage(loop.prompt);
-      loop.runs += 1;
+      const result = await this.patrol({
+        cwd: ctx.cwd,
+        prompt: loop.prompt,
+        patrolModel: loop.patrolModel,
+        patrolThinking: loop.patrolThinking,
+        probeCommand: loop.probeCommand,
+        signal: controller.signal,
+      });
+      if (this.activeLoop !== loop) return;
+      controller.signal.throwIfAborted();
+      const summary = [result.summary, result.evidence].filter(Boolean).join("\n");
+      if (result.outcome !== "continue") {
+        this.finishLoop(loop, `${result.outcome === "complete" ? "Completed" : "Needs attention"}: ${summary}`);
+        return;
+      }
+      if (loop.maxRuns !== undefined && loop.runs >= loop.maxRuns) {
+        this.finishLoop(loop, `Check limit reached (${loop.runs} checks); completion was not confirmed.\n${summary}`);
+        return;
+      }
+      if (loop.expiresAt !== undefined && Date.now() >= loop.expiresAt) {
+        this.finishLoop(loop, `Time limit reached; completion was not confirmed.\n${summary}`);
+        return;
+      }
     } catch (error) {
-      ctx.ui.notify(`Loop run skipped: ${messageFromError(error)}`, "warning");
-    }
-
-    if (loop.maxRuns !== undefined && loop.runs >= loop.maxRuns) {
-      this.clearLoop();
-      ctx.ui.notify(`Loop stopped after ${loop.runs} runs.`, "info");
+      if (this.activeLoop === loop) {
+        this.finishLoop(loop, `Monitoring stopped: ${messageFromError(controller.signal.aborted ? controller.signal.reason : error)}`);
+      }
       return;
+    } finally {
+      clearTimeout(deadline);
+      if (this.checkController === controller) this.checkController = undefined;
     }
 
-    this.armTimer();
-    this.renderFooterStatus();
+    // Schedule after completion: never overlap checks or catch up missed ticks.
+    if (this.activeLoop === loop) {
+      loop.nextRunAt = Date.now() + loop.intervalMs;
+      this.armTimer();
+      this.renderFooterStatus();
+    }
+  }
+
+  private finishLoop(loop: ActiveLoop, summary: string): void {
+    if (this.activeLoop !== loop) return;
+    this.clearLoop();
+    this.pi.sendMessage({
+      customType: "loop-result",
+      content: `Loop stopped.\nTask: ${loop.prompt}\n${summary}\nReport this result to the user.`,
+      display: true,
+    }, { triggerTurn: true, deliverAs: "followUp" });
   }
 
   private armTimer(): void {
@@ -270,7 +326,7 @@ export class LoopService {
       ? loop.nextRunAt
       : Math.min(loop.nextRunAt, loop.expiresAt);
     const delay = Math.max(0, wakeAt - Date.now());
-    this.timer = setTimeout(() => this.onTimer(), delay);
+    this.timer = setTimeout(() => { void this.onTimer(); }, delay);
     this.timer.unref?.();
   }
 
@@ -292,6 +348,8 @@ export class LoopService {
     this.timer = undefined;
     const wasActive = this.activeLoop !== undefined;
     this.activeLoop = undefined;
+    this.checkController?.abort(new Error("Loop stopped"));
+    this.checkController = undefined;
     this.renderFooterStatus();
     if (wasActive) this.emitActivity(false);
   }
@@ -299,7 +357,7 @@ export class LoopService {
   private renderFooterStatus(): void {
     const loop = this.activeLoop;
     const text = loop
-      ? `↻ ${loop.intervalLabel} · ${formatBeijingFooterTime(loop.nextRunAt)}`
+      ? `↻ ${loop.intervalLabel} · ${this.checkController ? "checking" : formatBeijingFooterTime(loop.nextRunAt)}`
       : undefined;
     this.context?.ui.setStatus(LOOP_STATUS_ID, text);
   }
@@ -313,13 +371,13 @@ export class LoopService {
   }
 }
 
-export function setupLoop(pi: ExtensionAPI): LoopService {
-  const service = new LoopService(pi);
+export function setupLoop(pi: ExtensionAPI, patrol: typeof runPatrol = runPatrol): LoopService {
+  const service = new LoopService(pi, patrol);
 
   pi.registerTool({
     name: "loop_start",
     label: "Start Loop",
-    description: "Start one session-scoped repeated check. Use a self-contained prompt; for monitored work, name the completion condition and tell the agent to call loop_stop when it is met.",
+    description: "Start one session-scoped background patrol using an independent model with read-only tools. Supply a self-contained check and completion condition. Ordinary checks stay silent; completion, alerts, limits, and errors notify the main conversation.",
     promptSnippet: "Start a session-scoped repeated check from a natural-language schedule",
     parameters: Type.Object({
       intervalMinutes: Type.Integer({
@@ -328,16 +386,25 @@ export function setupLoop(pi: ExtensionAPI): LoopService {
         maximum: MAX_INTERVAL_MS / 60_000,
       }),
       prompt: Type.String({
-        description: "Self-contained check prompt, including the completion condition and loop_stop instruction when monitoring bounded work",
+        description: "Self-contained check prompt: what to inspect, where to find it, and when monitoring is complete or needs attention",
         minLength: 1,
       }),
       maxRuns: Type.Optional(Type.Integer({
-        description: "Stop after this many successfully dispatched checks",
+        description: "Stop after this many checks unless completed earlier",
         minimum: 1,
       })),
       timeoutMinutes: Type.Optional(Type.Integer({
         description: "Stop after this many minutes",
         minimum: 1,
+      })),
+      patrolModel: Type.Optional(Type.String({
+        description: "Override the configured patrol model (provider/model)",
+        minLength: 1,
+      })),
+      patrolThinking: Type.Optional(StringEnum(["off", "minimal", "low", "medium", "high", "xhigh", "max"] as const)),
+      probeCommand: Type.Optional(Type.String({
+        description: "Optional read-only shell command run before each check; its output and exit code are supplied to the patrol model",
+        minLength: 1,
       })),
     }),
     executionMode: "sequential",
@@ -347,6 +414,9 @@ export function setupLoop(pi: ExtensionAPI): LoopService {
         intervalLabel: intervalLabelFromMinutes(params.intervalMinutes),
         prompt: params.prompt,
         maxRuns: params.maxRuns,
+        patrolModel: params.patrolModel,
+        patrolThinking: params.patrolThinking,
+        probeCommand: params.probeCommand,
         timeoutMs: params.timeoutMinutes === undefined
           ? undefined
           : params.timeoutMinutes * 60_000,
@@ -380,7 +450,7 @@ export function setupLoop(pi: ExtensionAPI): LoopService {
   pi.registerTool({
     name: "loop_stop",
     label: "Stop Loop",
-    description: "Stop future checks for the active Loop. Call this as soon as the monitored completion condition is met, or when the user asks to stop.",
+    description: "Stop the active Loop and cancel its current background check when the user asks to stop or monitoring is no longer needed.",
     promptSnippet: "Stop the active repeated check",
     parameters: Type.Object({
       reason: Type.Optional(Type.String({ description: "Why the Loop is stopping" })),
@@ -396,7 +466,7 @@ export function setupLoop(pi: ExtensionAPI): LoopService {
   });
 
   pi.registerCommand("loop", {
-    description: "Run one prompt repeatedly in the current TUI session",
+    description: "Monitor a task with an independent background model in the current TUI session",
     handler: async (args, ctx) => { service.handleCommand(args, ctx); },
   });
   pi.on("session_start", (_event, ctx) => { service.sessionStart(ctx); });

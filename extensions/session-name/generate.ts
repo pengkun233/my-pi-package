@@ -81,7 +81,7 @@ export async function generateTitle(
     if (response.stopReason !== "stop") throw new Error(response.errorMessage || `Title generation ended: ${response.stopReason}`);
     const title = cleanTitle(text(response.content));
     if (!title) throw new Error("Title model returned an empty title");
-    if (visibleWidth(title) <= MAX_TITLE_COLUMNS) return title;
+    if (visibleWidth(title) <= MAX_TITLE_COLUMNS || attempt === 1) return title;
     rejectedTitle = title;
   }
   throw new Error(`Title exceeds ${MAX_TITLE_COLUMNS} display columns after rewrite`);
