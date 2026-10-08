@@ -162,6 +162,38 @@ export function renderSegments(ids: SegmentId[], ctx: FooterLayoutContext): stri
   return output.map((part) => part.text);
 }
 
+const THINKING_SHORT_CODES: Record<string, string> = {
+  off: "O",
+  minimal: "MI",
+  low: "L",
+  medium: "M",
+  high: "H",
+  xhigh: "XH",
+  max: "MX",
+};
+
+/** One narrow-screen row; reserve thinking/context space before clipping the model. */
+export function buildCompactFooterContent(ctx: FooterLayoutContext, width: number): string {
+  if (!Number.isFinite(width) || width <= 0) return "";
+  width = Math.floor(width);
+  const color = (token: string, text: string): string => {
+    try { return ctx.theme.fg(token as any, text); } catch { return text; }
+  };
+  const level = sanitizeStatusText(ctx.thinkingLevel ?? "").toLowerCase();
+  const thinking = color(THINKING_COLORS[level] ?? "thinkingText", width < 40
+    ? THINKING_SHORT_CODES[level] ?? "?"
+    : level.toUpperCase() || "?");
+  const percent = ctx.contextPercent;
+  const context = color("muted", Number.isFinite(percent)
+    ? `ctx ${Math.min(100, Math.max(0, percent!)).toFixed(1)}%`
+    : "ctx ?");
+  const details = `${thinking} ${context}`;
+  const remaining = width - visibleWidth(details) - 1;
+  const model = color("text", sanitizeStatusText(ctx.model?.name || ctx.model?.id || "?"));
+  const clippedModel = remaining > 0 ? truncateToWidth(model, remaining, "") : "";
+  return truncateToWidth(`${visibleWidth(clippedModel) > 0 ? `${clippedModel} ` : ""}${details}`, width, "");
+}
+
 export function buildFooterContent(
   ctx: FooterLayoutContext,
   leftIds: SegmentId[],

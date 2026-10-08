@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { visibleWidth } from "@earendil-works/pi-tui";
 import {
+  buildCompactFooterContent,
   buildFooterContent,
   buildFooterStatusRows,
   renderSegment,
@@ -188,6 +189,80 @@ describe("footer layout", () => {
       terminalWidth: 50,
     });
     expect(stripAnsi(output ?? "")).toBe("61.7% ctx");
+  });
+
+  it.each([39, 40, 79])("uses only model, thinking and context at %i columns", (width) => {
+    const output = buildCompactFooterContent({
+      ...context,
+      model: { provider: "secret-provider", id: "model-id", name: "Model Name" },
+      providerDisplayName: "Provider Display",
+      thinkingLevel: "high",
+      contextPercent: 25.1,
+      contextTokens: 32_100,
+      contextWindow: 128_000,
+      sessionName: "secret-session",
+      inputTokens: 123,
+      cost: 1,
+    }, width);
+    expect(output).toBe(`Model Name ${width < 40 ? "H" : "HIGH"} ctx 25.1%`);
+    expect(visibleWidth(output)).toBeLessThanOrEqual(width);
+  });
+
+  it.each([
+    ["off", "O"], ["minimal", "MI"], ["low", "L"], ["medium", "M"],
+    ["high", "H"], ["xhigh", "XH"], ["max", "MX"],
+  ])("uses a distinct short code for %s without changing the full label", (level, code) => {
+    expect(buildCompactFooterContent({ ...context, thinkingLevel: level }, 39)).toBe(`? ${code} ctx ?`);
+    expect(buildCompactFooterContent({ ...context, thinkingLevel: level }, 40)).toBe(`? ${level.toUpperCase()} ctx ?`);
+  });
+
+  it("clips ANSI and Chinese model text first, retaining complete thinking and context", () => {
+    const crowded = {
+      ...context,
+      theme: rgbTheme({ text: "#ffffff", thinkingXhigh: "#ff0000", muted: "#aaaaaa" }),
+      model: { id: "unchanged-model-id", name: `\x1b[32m中文模型-${"很长".repeat(30)}\x1b[0m` },
+      thinkingLevel: "xhigh",
+      contextPercent: 61.7,
+    };
+    for (const width of [24, 39, 40, 79]) {
+      const output = buildCompactFooterContent(crowded, width);
+      const plain = stripAnsi(output);
+      expect(output).toContain("\x1b[");
+      expect(plain).toMatch(width < 40 ? / XH ctx 61\.7%$/ : / XHIGH ctx 61\.7%$/);
+      expect(plain).toMatch(/^中文模型-/);
+      expect(plain).not.toContain("unchanged-model-id");
+      expect(visibleWidth(output)).toBeLessThanOrEqual(width);
+    }
+    for (let width = 0; width < 20; width++) {
+      expect(visibleWidth(buildCompactFooterContent(crowded, width))).toBeLessThanOrEqual(width);
+    }
+    expect(buildCompactFooterContent(crowded, 0)).toBe("");
+    expect(stripAnsi(buildCompactFooterContent(crowded, 1))).toBe("X");
+    expect(stripAnsi(buildCompactFooterContent(crowded, 12))).toBe("XH ctx 61.7%");
+  });
+
+  it("handles unknown data without inventing a model alias, thinking level or zero usage", () => {
+    expect(buildCompactFooterContent(context, 40)).toBe("? ? ctx ?");
+    expect(buildCompactFooterContent({ ...context, model: { id: "original-id" } }, 40))
+      .toBe("original-id ? ctx ?");
+    expect(buildCompactFooterContent({ ...context, thinkingLevel: "future" }, 39)).toBe("? ? ctx ?");
+    expect(buildCompactFooterContent({ ...context, thinkingLevel: "future" }, 40)).toBe("? FUTURE ctx ?");
+    for (const contextPercent of [undefined, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(buildCompactFooterContent({ ...context, contextPercent }, 40)).toBe("? ? ctx ?");
+    }
+    for (const [contextPercent, label] of [[0, "0.0%"], [-1, "0.0%"], [110, "100.0%"]] as const) {
+      expect(buildCompactFooterContent({ ...context, contextPercent }, 40)).toBe(`? ? ctx ${label}`);
+    }
+  });
+
+  it("keeps model and thinking labels on one line and ignores context bar options", () => {
+    expect(buildCompactFooterContent({
+      ...context,
+      model: { id: "model\n\tname\u0007" },
+      thinkingLevel: "\n high\t",
+      contextPercent: 25.1,
+      contextBar: { ...DEFAULT_CONTEXT_BAR_CONFIG, responsive: false, showPercent: false },
+    }, 40)).toBe("model name HIGH ctx 25.1%");
   });
 
   it("never exceeds terminal width", () => {

@@ -3,7 +3,7 @@ import type { TUI } from "@earendil-works/pi-tui";
 import type { UiContext } from "../types.js";
 import { loadFooterConfig } from "./config.js";
 import { GitStatusCache } from "./git-status.js";
-import { buildFooterContent, buildFooterStatusRows } from "./layout.js";
+import { buildCompactFooterContent, buildFooterContent, buildFooterStatusRows } from "./layout.js";
 import type { FooterLayoutContext } from "./types.js";
 
 interface Usage {
@@ -94,6 +94,7 @@ export class FooterService {
           contextBar: config.contextBar,
           sessionName: this.ctx.sessionManager?.getSessionName?.(),
         };
+        if (width < 80) return [buildCompactFooterContent(layout, width)];
         const row1 = buildFooterContent(layout, config.row1Left, config.row1Right, width);
         const statusRows = buildFooterStatusRows(layout, config.row2Left, statuses, width, config.row2Right);
         let divider = "─".repeat(width);

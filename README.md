@@ -28,7 +28,7 @@ Three other bundled skills are user-invoked only:
 
 `extensions/ui/index.ts` installs one TUI lifecycle with:
 
-- custom footer and startup header; the footer preserves every standard `setStatus()` contribution, sorts statuses by ID, and wraps overflow onto additional rows;
+- custom footer and startup header; at 80 columns or wider, the footer preserves every standard `setStatus()` contribution, sorts statuses by ID, and wraps overflow onto additional rows;
 - boxed native editor with the companion enabled by default;
 - active-theme-aware message/tool rendering and subagent styling;
 - working spinner and terminal-tab status;
@@ -42,6 +42,14 @@ Optional machine-local overrides:
 - `~/.pi/agent/configs/ui-footer.json`
 
 The package defaults remain authoritative when those files are absent or invalid.
+
+The footer adapts on every render, including terminal resize, using fixed 80/40-column breakpoints:
+
+- **80 columns or wider:** existing full layout, including the top blank line, divider, configured rows, extension statuses, path/session, token counts and cost. The existing `contextBar.responsive` setting still controls the context bar only.
+- **40–79 columns:** exactly one line with the model name (or ID, without a provider prefix), full uppercase thinking level (such as `HIGH`), and context percentage (`ctx 25.1%`).
+- **Below 40 columns:** the same single line, with thinking short codes: `O` (off), `MI` (minimal), `L` (low), `M` (medium), `H` (high), `XH` (xhigh), `MX` (max).
+
+Narrow layouts hide all extension statuses, path/session, token counts and cost, with no top blank line, divider or second row, regardless of configured wide-screen segments. Model text is clipped first to preserve thinking/context; at extremely small widths even those fields may be clipped. Unknown model/thinking use `?`, and unavailable context is `ctx ?`, never a fabricated `0%`. No model aliases are inferred.
 
 ### Loop
 
