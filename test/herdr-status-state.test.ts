@@ -6,6 +6,14 @@ describe("Herdr sidebar task marks", () => {
     expect(Object.values(MARK_ICONS).map((icon) => `${icon} pi`)).toEqual(["🚀 pi", "💤 pi", "📖 pi", "✅ pi"]);
   });
 
+  it("overlays monitoring below ordinary subagents without changing task marks", () => {
+    for (const mark of ["working", "sleeping", "review"] as const) {
+      expect(displayMark(mark, 0, true)).toBe("📡");
+      expect(displayMark(mark, 1, true)).toBe("🤖");
+      expect(displayMark(mark, 0, false)).toBe(MARK_ICONS[mark]);
+    }
+  });
+
   it("leaves work for review, then cycles review and sleep", () => {
     expect(nextMark("working")).toBe("review");
     expect(nextMark("done")).toBe("review");

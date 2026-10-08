@@ -1,4 +1,5 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { TERMINAL_BACKGROUND_ACTIVITY_EVENT, isTerminalBackgroundActivityEvent } from "../ui/terminal-status-events.js";
 import { SidebarReporter } from "./reporter.js";
 import { nextMark, type TaskMark } from "./state.js";
 import { SubagentCounter } from "./subagents.js";
@@ -10,11 +11,13 @@ export default function herdrStatus(pi: ExtensionAPI): void {
 
   let mark: TaskMark = "sleeping";
   let count = 0;
+  let monitoring = false;
+  let unsubscribeActivity: (() => void) | undefined;
   let name: string | undefined;
   let reporter: SidebarReporter | undefined;
   let counter: SubagentCounter | undefined;
 
-  const publish = () => reporter?.publish(mark, count, name);
+  const publish = () => reporter?.publish(mark, count, name, monitoring);
   const setMark = (next: TaskMark) => {
     if (!reporter || next === mark) return;
     mark = next;
@@ -25,9 +28,16 @@ export default function herdrStatus(pi: ExtensionAPI): void {
     if (ctx.mode !== "tui" || reporter) return;
     mark = "sleeping";
     count = 0;
+    monitoring = false;
     name = pi.getSessionName();
     reporter = new SidebarReporter(paneId, (error) => {
       ctx.ui.notify(`Could not update Herdr sidebar metadata: ${error.message}`, "warning");
+    });
+    unsubscribeActivity = pi.events.on(TERMINAL_BACKGROUND_ACTIVITY_EVENT, (event) => {
+      if (!isTerminalBackgroundActivityEvent(event) || event.source !== "loop" || event.active === monitoring) return;
+      // Overlay only: keep the manual task mark intact while monitoring.
+      monitoring = event.active;
+      publish();
     });
     counter = new SubagentCounter(pi.events, (running) => {
       count = running;
@@ -63,6 +73,9 @@ export default function herdrStatus(pi: ExtensionAPI): void {
   });
 
   pi.on("session_shutdown", async () => {
+    unsubscribeActivity?.();
+    unsubscribeActivity = undefined;
+    monitoring = false;
     counter?.dispose();
     counter = undefined;
     const previous = reporter;

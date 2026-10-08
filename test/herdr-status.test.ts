@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import herdrStatus from "../extensions/herdr-status/index.js";
+import { TERMINAL_BACKGROUND_ACTIVITY_EVENT } from "../extensions/ui/terminal-status-events.js";
 import { reportMetadata } from "../extensions/herdr-status/socket.js";
 
 vi.mock("../extensions/herdr-status/socket.js", () => ({ reportMetadata: vi.fn(async () => {}) }));
@@ -138,6 +139,44 @@ describe("Herdr sidebar extension", () => {
     expect(h.last()?.pi_task_mark).toBe("🤖");
     await h.event("subagents:failed", { id: "b" });
     expect(h.last()?.pi_task_mark).toBe("✅");
+    await h.emit("session_shutdown");
+  });
+
+  it("shows monitoring through patrol prompts, preserves bookmarks, and prioritizes ordinary subagents", async () => {
+    const h = harness(); await h.emit("session_start");
+    await h.event(TERMINAL_BACKGROUND_ACTIVITY_EVENT, { source: "loop", active: true });
+    expect(h.last()?.pi_task_mark).toBe("📡");
+    await h.emit("input", { source: "extension", text: "patrol check" });
+    await h.emit("agent_end");
+    expect(h.last()?.pi_task_mark).toBe("📡");
+    await h.shortcut();
+    expect(h.last()?.pi_task_mark).toBe("📡");
+    await h.event("subagents:started", { id: "ordinary" });
+    expect(h.last()?.pi_task_mark).toBe("🤖");
+    await h.event("subagents:completed", { id: "ordinary" });
+    expect(h.last()?.pi_task_mark).toBe("📡");
+    await h.event(TERMINAL_BACKGROUND_ACTIVITY_EVENT, { source: "loop", active: false });
+    expect(h.last()?.pi_task_mark).toBe("📖");
+    await h.emit("session_shutdown");
+  });
+
+  it("ignores unrelated, malformed and duplicate activity and clears monitoring on shutdown", async () => {
+    const h = harness(); await h.emit("session_start");
+    for (const data of [null, {}, { source: "other", active: true }, { source: "loop", active: "yes" }]) {
+      await h.event(TERMINAL_BACKGROUND_ACTIVITY_EVENT, data);
+    }
+    expect(send).toHaveBeenCalledTimes(1);
+    await h.event(TERMINAL_BACKGROUND_ACTIVITY_EVENT, { source: "loop", active: true });
+    await h.event(TERMINAL_BACKGROUND_ACTIVITY_EVENT, { source: "loop", active: true });
+    expect(send).toHaveBeenCalledTimes(2);
+    await h.emit("session_shutdown");
+    expect(h.last()?.pi_task_mark).toBeNull();
+    expect([...h.listeners.values()].every((set) => set.size === 0)).toBe(true);
+    const calls = send.mock.calls.length;
+    await h.event(TERMINAL_BACKGROUND_ACTIVITY_EVENT, { source: "loop", active: true });
+    expect(send).toHaveBeenCalledTimes(calls);
+    await h.emit("session_start");
+    expect(h.last()?.pi_task_mark).toBe("💤");
     await h.emit("session_shutdown");
   });
 

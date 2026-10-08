@@ -17,10 +17,10 @@ export class SidebarReporter {
     private readonly send: (params: MetadataParams) => Promise<void> = reportMetadata,
   ) {}
 
-  publish(mark: TaskMark, count: number, name: string | undefined): void {
+  publish(mark: TaskMark, count: number, name: string | undefined, monitoring = false): void {
     if (this.closed) return;
     void this.report({
-      [MARK_TOKEN]: displayMark(mark, count),
+      [MARK_TOKEN]: displayMark(mark, count, monitoring),
       // Clear the legacy suffix for panes upgrading from the separate count display.
       [SUBAGENTS_TOKEN]: null,
       [SESSION_NAME_TOKEN]: name ?? null,
