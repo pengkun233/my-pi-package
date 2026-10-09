@@ -62,7 +62,7 @@ describe("footer adapter", () => {
         } else {
           expect(rows).toHaveLength(1);
           expect(rows[0]).not.toMatch(/[\r\n]|─|π|Provider|repository|Session|Secret|MCP|Memory|extension|↑|↓|\$/);
-          if (width >= 39) expect(rows[0]).toBe(`Model Name ${width < 40 ? "H" : "HIGH"} ctx 25.1%`);
+          if (width >= 39) expect(rows[0]).toBe(`Model Name ${width < 40 ? "H" : "HIGH"} ctx 32.1k 25.1%`);
         }
       }
       expect(component.render(0)).toEqual([]);

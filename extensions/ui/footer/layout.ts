@@ -184,9 +184,11 @@ export function buildCompactFooterContent(ctx: FooterLayoutContext, width: numbe
     ? THINKING_SHORT_CODES[level] ?? "?"
     : level.toUpperCase() || "?");
   const percent = ctx.contextPercent;
-  const context = color("muted", Number.isFinite(percent)
-    ? `ctx ${Math.min(100, Math.max(0, percent!)).toFixed(1)}%`
-    : "ctx ?");
+  const tokens = Number.isFinite(ctx.contextTokens) ? `${formatContextTokens(ctx.contextTokens!)} ` : "";
+  const percentLabel = Number.isFinite(percent)
+    ? `${Math.min(100, Math.max(0, percent!)).toFixed(1)}%`
+    : "?";
+  const context = color("muted", `ctx ${tokens}${percentLabel}`);
   const details = `${thinking} ${context}`;
   const remaining = width - visibleWidth(details) - 1;
   const model = color("text", sanitizeStatusText(ctx.model?.name || ctx.model?.id || "?"));

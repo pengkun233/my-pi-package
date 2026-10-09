@@ -204,7 +204,7 @@ describe("footer layout", () => {
       inputTokens: 123,
       cost: 1,
     }, width);
-    expect(output).toBe(`Model Name ${width < 40 ? "H" : "HIGH"} ctx 25.1%`);
+    expect(output).toBe(`Model Name ${width < 40 ? "H" : "HIGH"} ctx 32.1k 25.1%`);
     expect(visibleWidth(output)).toBeLessThanOrEqual(width);
   });
 
@@ -253,6 +253,33 @@ describe("footer layout", () => {
     for (const [contextPercent, label] of [[0, "0.0%"], [-1, "0.0%"], [110, "100.0%"]] as const) {
       expect(buildCompactFooterContent({ ...context, contextPercent }, 40)).toBe(`? ? ctx ${label}`);
     }
+  });
+
+  it.each([
+    [0, "0"], [999, "999"], [32_100, "32.1k"], [128_000, "128k"], [1_200_000, "1.2M"],
+  ])("retains actual context size %i and percentage before clipping the model", (contextTokens, label) => {
+    const ctx = {
+      ...context,
+      model: { id: "very-long-model-name" },
+      thinkingLevel: "high",
+      contextTokens,
+      contextPercent: 25.1,
+    };
+    for (const width of [24, 39, 40, 79]) {
+      const output = buildCompactFooterContent(ctx, width);
+      expect(output).toContain(`${width < 40 ? "H" : "HIGH"} ctx ${label} 25.1%`);
+      expect(visibleWidth(output)).toBeLessThanOrEqual(width);
+    }
+    for (let width = 0; width < 24; width++) {
+      expect(visibleWidth(buildCompactFooterContent(ctx, width))).toBeLessThanOrEqual(width);
+    }
+    expect(buildCompactFooterContent({ ...ctx, contextPercent: undefined }, 79))
+      .toBe(`very-long-model-name HIGH ctx ${label} ?`);
+  });
+
+  it.each([undefined, Number.NaN, Number.POSITIVE_INFINITY])("omits unavailable context size %s", (contextTokens) => {
+    expect(buildCompactFooterContent({ ...context, contextTokens, contextPercent: 25.1 }, 39))
+      .toBe("? ? ctx 25.1%");
   });
 
   it("keeps model and thinking labels on one line and ignores context bar options", () => {
