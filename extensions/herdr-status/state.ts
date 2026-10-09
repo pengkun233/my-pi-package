@@ -13,5 +13,5 @@ export function nextMark(mark: TaskMark): TaskMark {
 
 export function displayMark(mark: TaskMark, count: number, monitoring = false): string {
   if (Number.isSafeInteger(count) && count > 0) return "🤖";
-  return monitoring ? "📡" : MARK_ICONS[mark];
+  return monitoring ? "🔄" : MARK_ICONS[mark];
 }

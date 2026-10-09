@@ -8,7 +8,7 @@ describe("Herdr sidebar task marks", () => {
 
   it("overlays monitoring below ordinary subagents without changing task marks", () => {
     for (const mark of ["working", "sleeping", "review"] as const) {
-      expect(displayMark(mark, 0, true)).toBe("📡");
+      expect(displayMark(mark, 0, true)).toBe("🔄");
       expect(displayMark(mark, 1, true)).toBe("🤖");
       expect(displayMark(mark, 0, false)).toBe(MARK_ICONS[mark]);
     }

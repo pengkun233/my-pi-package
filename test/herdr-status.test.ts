@@ -145,16 +145,16 @@ describe("Herdr sidebar extension", () => {
   it("shows monitoring through patrol prompts, preserves bookmarks, and prioritizes ordinary subagents", async () => {
     const h = harness(); await h.emit("session_start");
     await h.event(TERMINAL_BACKGROUND_ACTIVITY_EVENT, { source: "loop", active: true });
-    expect(h.last()?.pi_task_mark).toBe("📡");
+    expect(h.last()?.pi_task_mark).toBe("🔄");
     await h.emit("input", { source: "extension", text: "patrol check" });
     await h.emit("agent_end");
-    expect(h.last()?.pi_task_mark).toBe("📡");
+    expect(h.last()?.pi_task_mark).toBe("🔄");
     await h.shortcut();
-    expect(h.last()?.pi_task_mark).toBe("📡");
+    expect(h.last()?.pi_task_mark).toBe("🔄");
     await h.event("subagents:started", { id: "ordinary" });
     expect(h.last()?.pi_task_mark).toBe("🤖");
     await h.event("subagents:completed", { id: "ordinary" });
-    expect(h.last()?.pi_task_mark).toBe("📡");
+    expect(h.last()?.pi_task_mark).toBe("🔄");
     await h.event(TERMINAL_BACKGROUND_ACTIVITY_EVENT, { source: "loop", active: false });
     expect(h.last()?.pi_task_mark).toBe("📖");
     await h.emit("session_shutdown");
