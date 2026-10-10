@@ -1,52 +1,77 @@
 import type { Theme } from "@earendil-works/pi-coding-agent";
-import { Box, Markdown, Text, truncateToWidth } from "@earendil-works/pi-tui";
+import { stripVTControlCharacters } from "node:util";
+import { Box, Markdown, sliceByColumn, Text, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+import { DEFAULT_STYLED_MESSAGES_CONFIG, type MessageStyle } from "./config.js";
 
 function fg(theme: Theme | undefined, token: string, text: string): string {
   try { return theme ? theme.fg(token as any, text) : text; } catch { return text; }
 }
 
-function prefixedMarkdown(
-  text: string,
-  markdownTheme: any,
-  prefix: string,
-  prefixToken: string,
-  theme: Theme | undefined,
-  bodyToken?: string,
-  italic = false,
-) {
-  const markdown = new Markdown(text, 0, 0, markdownTheme, bodyToken ? {
-    color: (value: string) => fg(theme, bodyToken, value),
-    italic,
-  } : undefined);
-  return {
-    invalidate() { markdown.invalidate(); },
-    render(width: number): string[] {
-      if (width <= 0) return [];
-      const coloredPrefix = fg(theme, prefixToken, prefix);
-      if (width <= 3) return [truncateToWidth(` ${coloredPrefix}`, width, "")];
-      const lines = markdown.render(Math.max(1, width - 3));
-      let placed = false;
-      return lines.map((line) => {
-        const rendered = !placed && line.trim()
-          ? ` ${coloredPrefix} ${line}`
-          : `   ${line}`;
-        if (!placed && line.trim()) placed = true;
-        return truncateToWidth(rendered, width, "");
-      });
-    },
+interface NativeMessageStyle extends MessageStyle {
+  theme?: Theme;
+  fallbackColor: string;
+  isThemeBackgroundVisible?: boolean;
+}
+
+const DECORATED = Symbol.for("my-pi-package.ui.message-decoration.v1");
+
+/** Decorate the instance, never replace it: options, transform, padding and mouse handlers remain native. */
+export function decorateNativeMessage(component: any, resolveStyle: () => NativeMessageStyle | undefined): void {
+  if (component[DECORATED] || typeof component.render !== "function") return;
+  const originalRender = component.render;
+  const nativeTextStyle = component.defaultTextStyle;
+  const withoutBackground = nativeTextStyle ? { ...nativeTextStyle, bgColor: undefined } : undefined;
+  component.render = function styledNativeMessageRender(width: number): string[] {
+    if (width <= 0) return [];
+    const style = resolveStyle();
+    const textStyle = style?.isThemeBackgroundVisible === false ? withoutBackground : nativeTextStyle;
+    if (this.defaultTextStyle !== textStyle) {
+      this.defaultTextStyle = textStyle;
+      this.invalidate?.();
+    }
+    // Empty prefix is exactly native layout, not a phantom symbol gutter.
+    if (!style?.prefix) return originalRender.call(this, width);
+    const gutter = visibleWidth(style.prefix) + 1;
+    const inset = Math.max(0, this.paddingX ?? 0);
+    const nativeWidth = Math.max(1, width - gutter);
+    const lines: string[] = originalRender.call(this, nativeWidth);
+    let placed = false;
+    let coloredPrefix: string;
+    try { coloredPrefix = style.theme ? style.theme.fg(style.prefixColor as any, style.prefix) : style.prefix; }
+    catch { coloredPrefix = fg(style.theme, style.fallbackColor, style.prefix); }
+    return lines.map((line) => {
+      // Terminal image protocol lines must not be sliced or prefixed.
+      if (line.includes("\x1b_G") || line.includes("\x1b]1337;File=")) return line;
+      const useful = stripVTControlCharacters(line).trim().length > 0;
+      const marker = !placed && useful ? `${coloredPrefix} ` : " ".repeat(gutter);
+      if (useful) placed = true;
+      const left = sliceByColumn(line, 0, inset);
+      const body = sliceByColumn(line, inset, Math.max(0, visibleWidth(line) - inset));
+      const bg = this.defaultTextStyle?.bgColor;
+      return truncateToWidth(`${left}${bg ? bg(marker) : marker}${body}`, width, "");
+    });
   };
+  component[DECORATED] = true;
+}
+
+function prefixedMarkdown(text: string, markdownTheme: any, style: MessageStyle, theme?: Theme, bodyToken?: string, italic = false) {
+  const markdown = new Markdown(text, 1, 0, markdownTheme, bodyToken ? {
+    color: (value: string) => fg(theme, bodyToken, value), italic,
+  } : undefined);
+  decorateNativeMessage(markdown, () => ({ ...style, fallbackColor: style.prefixColor, theme }));
+  return markdown;
 }
 
 export function createAssistantMessage(text: string, markdownTheme: any, theme?: Theme) {
-  return prefixedMarkdown(text, markdownTheme, "●", "text", theme);
+  return prefixedMarkdown(text, markdownTheme, DEFAULT_STYLED_MESSAGES_CONFIG.assistantMessage, theme);
 }
 
 export function createThinkingMessage(text: string, markdownTheme: any, theme?: Theme) {
-  return prefixedMarkdown(text, markdownTheme, "✽", "accent", theme, "dim", true);
+  return prefixedMarkdown(text, markdownTheme, DEFAULT_STYLED_MESSAGES_CONFIG.thinkingMessage, theme, "dim", true);
 }
 
 export function createUserMessage(text: string, markdownTheme: any, theme?: Theme) {
-  return prefixedMarkdown(text, markdownTheme, "❯", "accent", theme, "text");
+  return prefixedMarkdown(text, markdownTheme, DEFAULT_STYLED_MESSAGES_CONFIG.userMessage, theme, "text");
 }
 
 interface SubagentNotificationView {

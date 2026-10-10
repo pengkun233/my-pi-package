@@ -93,6 +93,8 @@ describe("renderer-only patches", () => {
   });
 
   it("styles assistant, thinking, user, and custom messages only while active", () => {
+    // Native thinking/user color callbacks now survive decoration.
+    initTheme("dark", false);
     installStyledPatches();
     setStyledActive(true, ui);
     const message: any = {

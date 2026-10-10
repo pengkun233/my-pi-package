@@ -40,12 +40,31 @@ Optional machine-local overrides:
 
 - `~/.pi/agent/configs/chat-input.json`
 - `~/.pi/agent/configs/ui-footer.json`
+- `~/.pi/agent/configs/styled-outputs.json` (or `$PI_CODING_AGENT_DIR/configs/styled-outputs.json`)
 
 The package defaults remain authoritative when those files are absent or invalid.
 
+Message-style overrides use the following local schema (all fields are optional):
+
+```json
+{
+  "assistantMessage": { "prefix": "●", "prefixColor": "text" },
+  "thinkingMessage": { "prefix": "✽", "prefixColor": "accent" },
+  "userMessage": {
+    "prefix": "❯",
+    "prefixColor": "accent",
+    "isThemeBackgroundVisible": true
+  }
+}
+```
+
+`prefixColor` is a foreground token from the active Pi theme, such as `accent`, `text`, `success`, or `warning`; unknown tokens fall back to the default prefix color. An empty `prefix` disables that marker **and its extra spacing**, leaving native output padding intact. Set `userMessage.isThemeBackgroundVisible` to `false` to remove the theme background while retaining native user text styling. Controls/oversized prefixes and wrongly typed fields fall back independently; a missing, unreadable or malformed file uses defaults. These overrides only configure the three message markers and user background, not the full upstream Pikit configuration schema or tool layout.
+
+The file is read when the UI is activated. Reload or restart Pi yourself after editing it; the package does not create the file or reload the session automatically. When upgrading from the previous message renderer, restart Pi once: `/reload` cannot replace old prototype wrappers already installed by that implementation. Styling decorates existing native Markdown rather than recreating it, preserving Markdown options/transformers, output padding, and Pi 1.1.0's clickable thinking regions.
+
 The footer adapts on every render, including terminal resize, using fixed 80/40-column breakpoints:
 
-- **80 columns or wider:** existing full layout, including the top blank line, divider, configured rows, extension statuses, path/session, token counts and cost. The existing `contextBar.responsive` setting still controls the context bar only.
+- **80 columns or wider:** full layout with divider, configured rows, extension statuses, path/session, token counts and cost, without a leading blank line. The existing `contextBar.responsive` setting still controls the context bar only.
 - **40–79 columns:** exactly one line with the model name (or ID, without a provider prefix), full uppercase thinking level (such as `HIGH`), and actual context token usage plus percentage (`ctx 32.1k 25.1%`).
 - **Below 40 columns:** the same single line, with thinking short codes: `O` (off), `MI` (minimal), `L` (low), `M` (medium), `H` (high), `XH` (xhigh), `MX` (max).
 
@@ -198,7 +217,7 @@ npm run pack:check
 npm pack --json --dry-run
 ```
 
-Built and tested against Pi `0.82.1`. Renderer prototype styling is best-effort because those internals are not a stable extension API.
+The main typecheck and test suite use pinned Pi `0.82.1` dependencies. Message-style regression tests also exercise real Pi `1.1.0` components in isolated Node processes, including user background/markers, Markdown transforms/output padding, and thinking click toggles. Those host-version tests run when Pi is available at `~/.npm-global/lib/node_modules/@earendil-works/pi-coding-agent`, or at the explicit `PI_STYLED_TEST_PI_ROOT` override; otherwise they are skipped. They do not replace a full bundled-CLI or live fullscreen terminal/mouse integration test. Renderer prototype styling remains best-effort because these internals are not a stable extension API.
 
 ## Attribution
 

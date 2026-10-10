@@ -44,7 +44,7 @@ describe("footer adapter", () => {
         contextTokens: 32_100, contextWindow: 128_000, contextPercent: 25.1,
         terminalWidth: width, contextBar: config.contextBar, sessionName: "Secret Session",
       };
-      return ["", buildFooterContent(layout, config.row1Left, config.row1Right, width), "─".repeat(width),
+      return [buildFooterContent(layout, config.row1Left, config.row1Right, width), "─".repeat(width),
         ...buildFooterStatusRows(layout, config.row2Left,
           [...statuses.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([, text]) => text),
           width, config.row2Right)];
@@ -124,8 +124,8 @@ describe("footer adapter", () => {
 
     const renderedWithCache = component.render(120);
     const withCache = renderedWithCache.join("\n");
-    expect(renderedWithCache[1]).not.toContain("↑400");
-    expect(renderedWithCache[3]).toContain("↑400 ↓10 CH61.7% | $0.911");
+    expect(renderedWithCache[0]).not.toContain("↑400");
+    expect(renderedWithCache[2]).toContain("↑400 ↓10 CH61.7% | $0.911");
     expect(withCache).not.toMatch(/\b[RW]\d/);
 
     branch.push({

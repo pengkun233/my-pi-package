@@ -5,15 +5,13 @@ import {
   UserMessageComponent,
   type ExtensionUIContext,
 } from "@earendil-works/pi-coding-agent";
-import { Markdown, Spacer } from "@earendil-works/pi-tui";
-import { STYLED_CONFIG } from "./config.js";
+import { Markdown, Spacer, truncateToWidth } from "@earendil-works/pi-tui";
+import { DEFAULT_STYLED_MESSAGES_CONFIG, loadStyledMessagesConfig, STYLED_CONFIG, type StyledMessagesConfig } from "./config.js";
 import { createGenericCallRenderer, renderGenericResult } from "./generic-tool-renderer.js";
 import {
-  createAssistantMessage,
   createCustomMessage,
   createSubagentNotification,
-  createThinkingMessage,
-  createUserMessage,
+  decorateNativeMessage,
 } from "./messages.js";
 import { isSubagentNotification, isSubagentTool, wrapSubagentResultRenderer } from "./subagent.js";
 import { getKnownCallRenderer, getKnownResultRenderer } from "./tool-renderers.js";
@@ -22,11 +20,13 @@ const PATCH = Symbol.for("my-pi-package.ui.renderer-patches.v1");
 const RUNTIME = Symbol.for("my-pi-package.ui.renderer-runtime.v1");
 const TOOL_BASELINE = Symbol.for("my-pi-package.ui.tool-baseline.v1");
 const USER_MODE = Symbol.for("my-pi-package.ui.user-mode.v1");
+const USER_CONFIG = Symbol.for("my-pi-package.ui.user-config.v1");
 const CUSTOM_MODE = Symbol.for("my-pi-package.ui.custom-mode.v1");
 
 interface RuntimeState {
   active: boolean;
   ui?: ExtensionUIContext;
+  messages?: StyledMessagesConfig;
 }
 
 function runtime(): RuntimeState {
@@ -46,6 +46,19 @@ export function setStyledActive(value: boolean, ui?: ExtensionUIContext): void {
   const state = runtime();
   state.active = value;
   state.ui = value ? ui : undefined;
+  if (value) state.messages = loadStyledMessagesConfig();
+}
+
+function messageStyle(kind: keyof StyledMessagesConfig) {
+  const state = runtime();
+  if (!state.active) return undefined;
+  const config = state.messages ?? DEFAULT_STYLED_MESSAGES_CONFIG;
+  return {
+    ...config[kind],
+    isThemeBackgroundVisible: kind === "userMessage" ? config.userMessage.isThemeBackgroundVisible : undefined,
+    theme: state.ui?.theme,
+    fallbackColor: DEFAULT_STYLED_MESSAGES_CONFIG[kind].prefixColor,
+  };
 }
 
 function patchAssistant(): void {
@@ -57,15 +70,17 @@ function patchAssistant(): void {
     if (!runtime().active) return returned;
     const children = this.contentContainer?.children;
     if (!Array.isArray(children)) return returned;
-    const theme = runtime().ui?.theme;
-    for (let index = 0; index < children.length; index++) {
-      const child = children[index] as any;
-      if (!isMarkdown(child)) continue;
-      const markdown = child as any;
-      if (typeof markdown.text !== "string" || !markdown.text) continue;
-      children[index] = markdown.defaultTextStyle?.italic
-        ? createThinkingMessage(markdown.text, this.markdownTheme, theme)
-        : createAssistantMessage(markdown.text, this.markdownTheme, theme);
+    for (const child of children) {
+      if (isMarkdown(child)) {
+        const kind = child.defaultTextStyle?.italic ? "thinkingMessage" : "assistantMessage";
+        decorateNativeMessage(child, () => messageStyle(kind));
+      } else if (child?.constructor?.name === "MouseRegion" && child.child) {
+        // Pi 1.1.0 wraps both expanded Markdown and collapsed Text. Keep the
+        // region and callback intact so left-click still toggles thinking.
+        if (isMarkdown(child.child) || child.child.constructor?.name === "Text") {
+          decorateNativeMessage(child.child, () => messageStyle("thinkingMessage"));
+        }
+      }
     }
     return returned;
   };
@@ -80,27 +95,31 @@ function patchUser(): void {
     const returned = originalRebuild.apply(this, args);
     const enabled = runtime().active;
     this[USER_MODE] = enabled;
+    this[USER_CONFIG] = runtime().messages;
     if (!enabled) return returned;
-    const box = this.children?.find((child: any) => Array.isArray(child?.children));
-    if (!box?.children) return returned;
-    const theme = runtime().ui?.theme;
-    for (let index = 0; index < box.children.length; index++) {
-      const child = box.children[index] as any;
+    for (const child of this.children ?? []) {
       if (isMarkdown(child)) {
-        const markdown = child as any;
-        if (typeof markdown.text === "string") box.children[index] = createUserMessage(markdown.text, this.markdownTheme, theme);
+        // Pi 1.1.0: Markdown owns its padding and user background.
+        decorateNativeMessage(child, () => messageStyle("userMessage"));
+      } else if (child?.constructor?.name === "Box" && Array.isArray(child.children)) {
+        // Pi 0.82.1: the outer Box owns padding/background. Do not zero outputPad.
+        for (const markdown of child.children) {
+          if (isMarkdown(markdown)) decorateNativeMessage(markdown, () => messageStyle("userMessage"));
+        }
+        if (messageStyle("userMessage")?.isThemeBackgroundVisible === false) child.setBgFn?.(undefined);
       }
     }
-    box.paddingX = 0;
-    const currentTheme = runtime().ui?.theme;
-    if (currentTheme) box.setBgFn?.((value: string) => currentTheme.bg("userMessageBg" as any, value));
     return returned;
   };
   if (typeof prototype.render === "function") {
     const originalRender = prototype.render;
     prototype.render = function personalUiUserRender(...args: unknown[]) {
-      if (this[USER_MODE] !== runtime().active && typeof this.rebuild === "function") this.rebuild();
-      return originalRender.apply(this, args);
+      if ((this[USER_MODE] !== runtime().active || this[USER_CONFIG] !== runtime().messages)
+        && typeof this.rebuild === "function") this.rebuild();
+      const lines = originalRender.apply(this, args);
+      // Legacy Box without a background can exceed tiny widths with outputPad.
+      return runtime().active && typeof args[0] === "number"
+        ? lines.map((line: string) => truncateToWidth(line, Math.max(0, args[0] as number), "")) : lines;
     };
   }
   prototype[PATCH] = true;
