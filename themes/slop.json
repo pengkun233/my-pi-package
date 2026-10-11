@@ -32,9 +32,9 @@
     "customMessageText": "text",
     "customMessageLabel": "#9575cd",
 
-    "toolPendingBg": "",
-    "toolSuccessBg": "",
-    "toolErrorBg": "",
+    "toolPendingBg": "#34312F",
+    "toolSuccessBg": "#323D30",
+    "toolErrorBg": "#48312E",
     "toolTitle": "#e88720",
     "toolOutput": "text",
     "toolDiffAdded": "#b5bd68",

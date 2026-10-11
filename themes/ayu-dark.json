@@ -38,9 +38,9 @@
     "customMessageBg": "#131924",
     "customMessageText": "fg",
     "customMessageLabel": "accent",
-    "toolPendingBg": "",
-    "toolSuccessBg": "",
-    "toolErrorBg": "",
+    "toolPendingBg": "#252C38",
+    "toolSuccessBg": "#27382F",
+    "toolErrorBg": "#3C292E",
     "toolTitle": "accent",
     "toolOutput": "fg",
 

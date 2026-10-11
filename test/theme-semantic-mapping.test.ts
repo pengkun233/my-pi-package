@@ -44,18 +44,17 @@ describe("theme semantic mappings", () => {
     }
   });
 
-  it("keeps tool panels and fenced code backgrounds transparent in every theme", () => {
+  it("uses distinct tool status backgrounds while keeping fenced code backgrounds transparent", () => {
     for (const name of [
       "slop", "flexoki-dark", "everforest-dark-hard", "gruvbox-dark", "kanagawa-wave",
       "dracula", "ayu-dark", "ayu-mirage", "ayu-light", "vesper", "poimandres",
     ]) {
-      const colors = loadTheme(name).colors;
-      expect({
-        toolPendingBg: colors.toolPendingBg,
-        toolSuccessBg: colors.toolSuccessBg,
-        toolErrorBg: colors.toolErrorBg,
-        mdCodeBlock: colors.mdCodeBlock,
-      }, name).toEqual({ toolPendingBg: "", toolSuccessBg: "", toolErrorBg: "", mdCodeBlock: "" });
+      const theme = loadTheme(name);
+      const backgrounds = ["toolPendingBg", "toolSuccessBg", "toolErrorBg"]
+        .map((token) => resolvedColor(theme, token));
+      for (const color of backgrounds) expect(color, name).toMatch(/^#[0-9a-f]{6}$/i);
+      expect(new Set(backgrounds).size, name).toBe(3);
+      expect(theme.colors.mdCodeBlock, name).toBe("");
     }
   });
 
