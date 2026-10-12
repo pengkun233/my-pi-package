@@ -29,7 +29,11 @@
       "./extensions/loop/index.ts",
       "./extensions/memory/index.ts",
       "./extensions/prompt-snippets/index.ts",
-      "./extensions/openai-usage.ts"
+      "./extensions/openai-usage.ts",
+      "./extensions/btw/index.ts",
+      "./extensions/completion/index.ts",
+      "./extensions/copy-block/index.ts",
+      "./extensions/token-analyze/index.ts"
     ],
     "skills": [
       "./skills"

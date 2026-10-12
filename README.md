@@ -1,6 +1,6 @@
 # my-pi-package
 
-Private personal [Pi](https://pi.dev) package for reproducing this setup on another machine. It bundles an always-on TUI, a session-scoped Loop scheduler with a model-invoked skill, progressive memory, a prompt-snippet picker, OpenAI usage, three user-invoked skills, three prompt templates, eleven selectable themes, recommended global interaction preferences, and reference Herdr configuration. It contains no credentials, sessions, memory data, or other machine state.
+Private personal [Pi](https://pi.dev) package for reproducing this setup on another machine. It bundles an always-on TUI, isolated side chat, completion metadata, source-block copying, a session-scoped Loop scheduler, progressive memory, a prompt-snippet picker, Codex subscription usage, independent prompt/configuration audit skills, three user-invoked workflow skills, three prompt templates, eleven selectable themes, recommended global interaction preferences, and reference Herdr configuration. It contains no credentials, sessions, memory data, or other machine state.
 
 ## Install
 
@@ -18,6 +18,13 @@ For setup on another machine, package updates, or configuration sync, have the a
 
 The model-invoked `loop` skill translates natural-language scheduling, status, and cancellation requests into the Loop tools. `/skill:loop` loads it explicitly when needed.
 
+Two independent Chinese audit skills are also model-invoked or available explicitly:
+
+- `/skill:prompt-audit [scope]` reviews instruction quality, conflicts, outdated facts, routing and workflow clarity. It reports source evidence, confidence, semantic risks and proposed changes only; it does not edit configuration automatically.
+- `/skill:token-analyze [scope/window]` analyzes the **current project's effective configuration**, including global/project system instructions, AGENTS context, tool descriptions/schemas and permanent skill indexes. It separates on-demand skill bodies and dynamic injection from permanent cost, and reports observed project tool/skill frequencies, session coverage and last-seen dates over the last 30 days. It is not a current-conversation usage report or a subscription-quota query.
+
+There is no doctor skill or command. Audits keep configuration unchanged unless you separately authorize an implementation.
+
 Three other bundled skills are user-invoked only:
 
 - `/skill:project-init` initializes a target directory as a Git repository with concise `AGENTS.md`, `README.md`, and `ai_docs/` documentation, plus a `CLAUDE.md` symlink.
@@ -30,6 +37,7 @@ Three other bundled skills are user-invoked only:
 
 - custom footer and startup header; at 80 columns or wider, the footer preserves every standard `setStatus()` contribution, sorts statuses by ID, and wraps overflow onto additional rows;
 - boxed native editor with the companion enabled by default;
+- clear-draft recovery: clear nonempty text with the configured `app.clear` binding (normally Ctrl+C), then press the configured cursor-Up binding while empty to restore it once; subsequent history/cursor navigation stays native. Typing or host-driven draft/session replacement discards the saved draft. Multiline, Chinese, bash text and expanded paste contents are preserved as plain text. Attachment objects, cursor position and editor undo/paste-marker state are not exposed by the host and are not restored; fullscreen selection, application shortcuts, empty-editor exit and higher-priority extension shortcuts remain native;
 - active-theme-aware message/tool rendering and subagent styling;
 - working spinner and terminal-tab status;
 - `/ack` to return a settled terminal status to idle.
@@ -107,9 +115,49 @@ Loop publishes background activity through the terminal-status plugin's generic 
 
 `extensions/prompt-snippets/` provides `Alt+Shift+S` and `/snippets` for toggling small prepend/append rules on the next message. It merges package defaults from its adjacent `snippets/` directory with machine-local files under `~/.pi/agent/snippets/`; a local file overrides a packaged snippet with the same filename. Package updates synchronize defaults, while private or machine-specific snippets remain outside Git and must be synchronized separately when desired.
 
-### OpenAI usage
+### Isolated side conversation
 
-`extensions/openai-usage.ts` provides `/usage` for a logged-in `openai-codex` account. It reads credentials through Pi at runtime and does not store or package them.
+`extensions/btw/` provides `/btw QUESTION` in the interactive TUI. Each invocation with a question starts a new side conversation using the current model and the completed main-context snapshot at that moment. `/btw` without arguments reopens the current side conversation without another request.
+
+- Enter submits a side follow-up; Ctrl+N **New** discards that thread and takes a fresh main snapshot/current model. PgUp/PgDn scroll the side answer.
+- Esc **Close** removes only the overlay: a pending answer continues, and the thread/draft survives for reopening. Ctrl+K **Cancel** aborts only the side request, retaining the conversation. Neither action aborts or steers the main task, which continues underneath.
+- Side requests have a short side-question instruction and **no tools or execution path**. The snapshot is reference data, not an instruction to carry out the main task. Side text never enters main assistant messages, context, history or built-in `/copy`.
+- One thread plus session-wide side usage lives in memory. New questions replace the thread but not session usage. Tree navigation closes/cancels the overlay request while retaining the thread and its original snapshot; New refreshes it. Session replacement, reload or shutdown discards everything. No side transcripts are written to disk.
+- Usage shown in the overlay and `btw-usage` footer status is provider-reported side usage, separate from main usage; cancelled/failed requests may report no usage. Side requests consume the same account's quota.
+
+The snapshot respects branch/compaction and includes finalized text, tool inputs/results and summaries, excluding reasoning, images, system instructions and context-excluded shell executions. It does not include currently streaming text or unpersisted extension context transformations. An existing thread keeps its selected model/snapshot until New. Very large main/side history can exceed the model's context limit (no automatic side compaction); errors are shown in the overlay. Tiny terminals may clip the editor/controls. RPC/print modes have no side overlay.
+
+### Completion metadata
+
+`extensions/completion/` appends muted, right-aligned metadata such as `finished · 14:32:18 · 1m24s` only at `agent_settled`, after automatic retries, compaction and queued continuations. `stopped` and `error` reflect cancellation/final failure, not success. This measures a complete settled run, not each model request or proof that a task's result is correct.
+
+The local-clock end time and monotonic elapsed time are custom session entries, replayable after resume and independent of assistant Markdown, model context and copy commands. Ephemeral sessions do not survive exit; a process crash cannot produce a settled completion entry. Hosts without a final abort flag use their exposed run signal/last assistant stop reason. Pi 0.82.1 can lose cancellation evidence while waiting between retries/compaction; exact final-abort classification requires the newer host flag (verified at Pi 1.1.0).
+
+### Source-block copying
+
+`/copy-block` first selects a completed assistant response on the current branch, then whole Markdown, a heading section, a consecutive blockquote or a fenced code block. Whole/section/quote selections preserve source Markdown. Code copies **only the interior**, without fences/language labels, preserving indentation and original line endings. Thinking, tool results, side chat and completion metadata are excluded. Built-in `/copy` and its shortcut are unchanged; native pickers do not reset the draft.
+
+The lightweight scanner supports top-level ATX/setext headings and backtick/tilde fences (including unclosed fences). It is not a complete CommonMark parser: nested list/quote fences, lazy quote continuations and indented-code blocks are not separate selections; whole-response copying preserves those sources. Clipboard requests use Pi's native helper; SSH/OSC52 success cannot be acknowledged, so the notification says a copy was requested, not guaranteed.
+
+### Codex subscription usage
+
+`extensions/openai-usage.ts` provides `/codex-plan-usage` for a logged-in `openai-codex` account; `/codex-plan-usage json` shows a sanitized response. The former command has no alias. It reads credentials through Pi at runtime and does not store or package them. This queries OpenAI's internal subscription-quota endpoint, not project token efficiency; the endpoint can change.
+
+### Token-analysis evidence and limits
+
+`extensions/token-analyze/` is a small local metadata collector supporting the independent `token-analyze` skill, not a new model-facing tool or prompt injection. After reload, make a main request to capture effective runtime configuration. For a deterministic local JSON report without calling a model, run from the package root:
+
+```bash
+node skills/token-analyze/scripts/report.mjs --cwd /path/to/project --days 30
+```
+
+The skill resolves this helper relative to its installed skill directory. `--agent-dir PATH` and `--session-dir PATH` support alternative storage. The default project boundary is the Git root and its subdirectories (otherwise the requested cwd). Historical JSONL sessions are the primary evidence; minimal skill-read/explicit-invocation entries supplement them. Other historical custom session directories need an explicit override.
+
+Snapshots are saved atomically under `$PI_CODING_AGENT_DIR/token-analyze/<cwd-hash>/latest.json` (default `~/.pi/agent/`), with directory/file modes 0700/0600. They contain lengths, heuristic estimates, hashes, tool/skill names, source paths, timestamps and session/model identifiers—not prompt bodies, tool arguments/results, schema bodies or credentials. Skill observations are non-context custom session entries. Historical analysis reads only these snapshots, session JSONL and identified skill bodies; it does not read auth files, secret environment variables or remote token APIs. Normal session logs may themselves contain sensitive material; the report does not reproduce their content.
+
+Estimates use CJK characters plus other UTF-16 characters/4, **not a tokenizer or billing total**. Component estimates overlap and must not be added as exact buckets; on-demand bodies are potential disk costs, not permanent injection. Active registered tools may differ from actual declarations after codemode/loadout/provider transforms. Known outgoing tool/instruction fields get an additional metadata-only wire estimate when exposed; later handlers, hidden/server prompts and unsupported provider payload shapes remain unknown.
+
+A snapshot is the latest observed project request, possibly stale or from another session/subdirectory—not a promise about the next request after disk changes. Its `baseSystem` was observed at the collector's `before_agent_start` handler, possibly after earlier extension changes; zero difference does not prove no dynamic injection. Missing snapshots mean effective configuration is unknown. Historical coverage is a lower bound: old nested/codemode calls, other readers/bash, deleted sessions, missing timestamps and incomplete nested records cannot be reconstructed. Explicit invocation evidence is paired approximately by name/time and does not prove workflow success; forks/clones may duplicate ancestral activity. Failed/unfinished reads are not successful skill use. Low observed frequency alone never authorizes disabling a capability or global configuration changes.
 
 ### Global voice-input preference
 
@@ -217,7 +265,7 @@ npm run pack:check
 npm pack --json --dry-run
 ```
 
-The main typecheck and test suite use pinned Pi `0.82.1` dependencies. Message-style regression tests also exercise real Pi `1.1.0` components in isolated Node processes, including user background/markers, Markdown transforms/output padding, and thinking click toggles. Those host-version tests run when Pi is available at `~/.npm-global/lib/node_modules/@earendil-works/pi-coding-agent`, or at the explicit `PI_STYLED_TEST_PI_ROOT` override; otherwise they are skipped. They do not replace a full bundled-CLI or live fullscreen terminal/mouse integration test. Renderer prototype styling remains best-effort because these internals are not a stable extension API.
+The main typecheck and test suite use pinned Pi `0.82.1` dependencies. Message-style regression tests also exercise real Pi `1.1.0` components in isolated Node processes, including user background/markers, Markdown transforms/output padding, and thinking click toggles. Isolated enhancement smoke tests additionally load side-chat snapshot/overlay APIs, the authenticated-stream facade path, completion metadata and clear-draft recovery against both Pi versions, using mock model streams (no account/network calls). Host-version tests run when Pi is available at `~/.npm-global/lib/node_modules/@earendil-works/pi-coding-agent`, or at the explicit `PI_STYLED_TEST_PI_ROOT` / `PI_ENHANCEMENTS_TEST_PI_ROOT` overrides respectively; otherwise they are skipped. They do not replace a full bundled-CLI or live fullscreen terminal/mouse integration test. Renderer prototype styling remains best-effort because these internals are not a stable extension API.
 
 ## Attribution
 

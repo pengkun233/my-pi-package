@@ -14,7 +14,7 @@ const bundledThemes = [
   "vesper",
   "poimandres",
 ];
-const allowed = /^(package\/(package\.json|README\.md|LICENSE|THIRD_PARTY_NOTICES\.md|config\/(recommended\.md|packages\.json|global-agents\.md|herdr\/config\.toml)|themes\/(slop|flexoki-dark|everforest-dark-hard|gruvbox-dark|kanagawa-wave|dracula|ayu-dark|ayu-mirage|ayu-light|vesper|poimandres)\.json|prompts\/(Get-Shit-Done|Neat-Freak|aye)\.md|skills\/(loop|project-init|tidy-memory|wait-what-cn)\/SKILL\.md|extensions\/(openai-usage\.ts|herdr-status\/.*\.ts|session-name\/.*\.ts|loop\/.*\.ts|memory\/.*\.ts|memory\/README\.md|prompt-snippets\/(README\.md|index\.ts|snippets\/.*\.md)|ui\/.*\.ts)))$/;
+const allowed = /^(package\/(package\.json|README\.md|LICENSE|THIRD_PARTY_NOTICES\.md|config\/(recommended\.md|packages\.json|global-agents\.md|herdr\/config\.toml)|themes\/(slop|flexoki-dark|everforest-dark-hard|gruvbox-dark|kanagawa-wave|dracula|ayu-dark|ayu-mirage|ayu-light|vesper|poimandres)\.json|prompts\/(Get-Shit-Done|Neat-Freak|aye)\.md|skills\/((loop|project-init|tidy-memory|wait-what-cn|prompt-audit|token-analyze)\/SKILL\.md|token-analyze\/scripts\/report\.mjs)|extensions\/(openai-usage\.ts|(btw|completion|copy-block|token-analyze)\/.*\.ts|herdr-status\/.*\.ts|session-name\/.*\.ts|loop\/.*\.ts|memory\/.*\.ts|memory\/README\.md|prompt-snippets\/(README\.md|index\.ts|snippets\/.*\.md)|ui\/.*\.ts)))$/;
 
 describe("tarball boundary", () => {
   it("contains only reproducible package resources", () => {
@@ -32,6 +32,11 @@ describe("tarball boundary", () => {
     expect(paths).toContain("package/skills/project-init/SKILL.md");
     expect(paths).toContain("package/skills/tidy-memory/SKILL.md");
     expect(paths).toContain("package/skills/wait-what-cn/SKILL.md");
+    for (const extension of ["btw", "completion", "copy-block", "token-analyze"]) {
+      expect(paths).toContain(`package/extensions/${extension}/index.ts`);
+    }
+    for (const skill of ["prompt-audit", "token-analyze"]) expect(paths).toContain(`package/skills/${skill}/SKILL.md`);
+    expect(paths).toContain("package/skills/token-analyze/scripts/report.mjs");
     for (const theme of bundledThemes) expect(paths).toContain(`package/themes/${theme}.json`);
     for (const path of paths) expect(path).toMatch(allowed);
     expect(paths.some((path: string) => /(?:^|\/)(?:test|node_modules|sessions?|auth|credentials)(?:\/|$)|memory\/topics/i.test(path))).toBe(false);

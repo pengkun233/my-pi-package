@@ -1,6 +1,6 @@
 // Adapted from adrianapan/pikit's MIT-licensed chat-input extension.
 import { CustomEditor, type KeybindingsManager } from "@earendil-works/pi-coding-agent";
-import { visibleWidth, type EditorTheme, type TUI } from "@earendil-works/pi-tui";
+import { visibleWidth, type EditorTheme, type Keybinding, type TUI } from "@earendil-works/pi-tui";
 import type { UiContext } from "./types.js";
 import {
   CHAT_INPUT_CONFIG,
@@ -22,16 +22,53 @@ export class ChatInput extends CustomEditor {
   private readonly animator = new CompanionAnimator();
   private companionTimer: ReturnType<typeof setInterval> | undefined;
   private disposed = false;
+  private clearedDraft: string | undefined;
+
+  handleInput(data: string): void {
+    // Let host shortcuts, fullscreen selection and dialogs retain their priority.
+    const clearing = this.editorKeybindings.matches(data, "app.clear");
+    const draft = clearing ? this.getExpandedText() : undefined;
+    if (!clearing && !this.isShowingAutocomplete() && this.getText() === "" &&
+      this.clearedDraft !== undefined &&
+      this.editorKeybindings.matches(data, "tui.editor.cursorUp") &&
+      !Object.keys(this.editorKeybindings.getResolvedBindings()).some((action) =>
+        (action.startsWith("app.") || action === "tui.editor.historyPrevious" || action === "tui.editor.historyNext") &&
+        this.editorKeybindings.matches(data, action as Keybinding))) {
+      if (this.onExtensionShortcut?.(data)) return;
+      const saved = this.clearedDraft;
+      this.clearedDraft = undefined;
+      this.setText(saved);
+      this.tui.requestRender();
+      return;
+    }
+    const shortcut = this.onExtensionShortcut;
+    let consumed = false;
+    const observeShortcut = (key: string) => { consumed = shortcut?.call(this, key) === true; return consumed; };
+    if (clearing && shortcut) this.onExtensionShortcut = observeShortcut;
+    try { super.handleInput(data); }
+    finally {
+      if (this.onExtensionShortcut === observeShortcut) this.onExtensionShortcut = shortcut;
+    }
+    // Capture only a clear which actually happened, not an extension-owned clear.
+    if (!consumed && draft && this.getText() === "") this.clearedDraft = draft;
+    else if (!clearing && this.getText() !== "") this.clearedDraft = undefined;
+  }
+
+  setText(text: string): void {
+    // Host-driven draft/session replacement must not resurrect a stale cleared draft.
+    this.clearedDraft = undefined;
+    super.setText(text);
+  }
 
   constructor(
     tui: TUI,
     theme: EditorTheme,
-    keybindings: KeybindingsManager,
+    private readonly editorKeybindings: KeybindingsManager,
     private readonly styles: InputStyles,
     private readonly config: Readonly<ChatInputConfig> = CHAT_INPUT_CONFIG,
     private readonly companionColor: (text: string) => string = (text) => text,
   ) {
-    super(tui, theme, keybindings, { paddingX: 0 });
+    super(tui, theme, editorKeybindings, { paddingX: 0 });
     if (config.companion.enabled) {
       this.companionTimer = setInterval(() => {
         if (this.disposed) return;

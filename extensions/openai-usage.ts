@@ -462,8 +462,8 @@ async function showResult(ctx: ExtensionCommandContext, text: string): Promise<v
 }
 
 export default function openAIUsageExtension(pi: ExtensionAPI) {
-	pi.registerCommand("usage", {
-		description: "查看 OpenAI ChatGPT/Codex 订阅用量（/usage json 显示脱敏 JSON）",
+	pi.registerCommand("codex-plan-usage", {
+		description: "查看 OpenAI ChatGPT/Codex 订阅用量（/codex-plan-usage json 显示脱敏 JSON）",
 		getArgumentCompletions: (prefix) =>
 			"json".startsWith(prefix.trim()) ? [{ value: "json", label: "json", description: "显示脱敏后的原始响应" }] : null,
 		handler: async (args, ctx) => {

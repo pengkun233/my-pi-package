@@ -33,6 +33,10 @@ describe("package boundary", () => {
       "./extensions/memory/index.ts",
       "./extensions/prompt-snippets/index.ts",
       "./extensions/openai-usage.ts",
+      "./extensions/btw/index.ts",
+      "./extensions/completion/index.ts",
+      "./extensions/copy-block/index.ts",
+      "./extensions/token-analyze/index.ts",
     ]);
     expect(pkg.pi.skills).toEqual(["./skills"]);
     expect(pkg.pi.prompts).toEqual(["./prompts"]);
@@ -47,6 +51,17 @@ describe("package boundary", () => {
     for (const tool of ["loop_start", "loop_status", "loop_stop"]) {
       expect(skill).toContain(`\`${tool}\``);
     }
+  });
+
+  it("ships two independent Chinese read-only audit skills, without doctor", () => {
+    const audit = readFileSync(join(process.cwd(), "skills/prompt-audit/SKILL.md"), "utf8");
+    const tokens = readFileSync(join(process.cwd(), "skills/token-analyze/SKILL.md"), "utf8");
+    expect(audit).toContain("name: prompt-audit"); expect(audit).toContain("修改提案");
+    expect(tokens).toContain("name: token-analyze"); expect(tokens).toContain("当前 PROJECT");
+    expect(tokens).toContain("history.tools"); expect(tokens).toContain("近 30 天");
+    expect(tokens).toContain("不是当前会话 token 报表");
+    for (const skill of [audit, tokens]) { expect(skill).toContain("description:"); expect(skill).not.toContain("disable-model-invocation"); }
+    expect(pkg.pi.extensions.some((path) => path.includes("doctor"))).toBe(false);
   });
 
   it("uses Pi-supported prompt argument placeholders", () => {
