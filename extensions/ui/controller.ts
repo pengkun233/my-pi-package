@@ -100,7 +100,7 @@ export class UiController {
       }
       return { ok: true, message: "UI installed." };
     } catch (error) {
-      this.cleanup(ctx);
+      this.sessionShutdown();
       const message = `Unable to install UI: ${String(error)}`;
       ctx.ui.notify(message, "error");
       return { ok: false, message };
@@ -125,6 +125,9 @@ export class UiController {
   }
 
   sessionShutdown(): void {
+    // Headless sessions never installed UI and must not disable the parent's
+    // process-wide message styles. Also make repeated shutdowns a no-op.
+    if (!this.active && !this.features && !this.snapshot) return;
     if (this.context) this.cleanup(this.context);
     else {
       this.features?.dispose();

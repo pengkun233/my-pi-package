@@ -74,6 +74,38 @@ describe("always-on UI controller", () => {
     expect(h.controller.sessionStart(h.ctx).ok).toBe(true);
     expect(h.installs).toBe(0);
     expect(h.controller.isActive()).toBe(false);
+    h.controller.sessionShutdown();
+    expect(h.calls).toEqual([]);
+  });
+
+  it("does nothing on shutdown before startup or after an earlier shutdown", () => {
+    const h = harness();
+    h.controller.sessionShutdown();
+    expect(h.calls).toEqual([]);
+    h.controller.sessionStart(h.ctx);
+    h.controller.sessionShutdown();
+    const calls = [...h.calls];
+    h.controller.sessionShutdown();
+    expect(h.calls).toEqual(calls);
+    expect(h.disposes).toBe(1);
+  });
+
+  it("cleans a failed installation once and does not retain its UI context", () => {
+    const h = harness();
+    const disable = vi.fn();
+    const controller = new UiController({
+      install: () => { throw new Error("partial installation"); },
+      setStyledActive: disable,
+    });
+    expect(controller.sessionStart(h.ctx).ok).toBe(false);
+    expect(controller.isActive()).toBe(false);
+    expect(h.calls).toContainEqual(["editor", h.priorEditor]);
+    expect(h.calls).toContainEqual(["footer", undefined]);
+    expect(disable).toHaveBeenCalledExactlyOnceWith(false);
+    const calls = [...h.calls];
+    controller.sessionShutdown();
+    expect(h.calls).toEqual(calls);
+    expect(disable).toHaveBeenCalledTimes(1);
   });
 
   it("disposes animation resources during shutdown", () => {

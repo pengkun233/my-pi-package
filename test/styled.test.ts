@@ -7,6 +7,7 @@ import {
   UserMessageComponent,
 } from "@earendil-works/pi-coding-agent";
 import { Markdown } from "@earendil-works/pi-tui";
+import { UiController } from "../extensions/ui/controller.js";
 import { installStyledPatches, setStyledActive } from "../extensions/ui/styled/index.js";
 
 const flag = Symbol.for("my-pi-package.ui.renderer-patches.v1");
@@ -58,6 +59,42 @@ afterEach(() => {
 });
 
 describe("renderer-only patches", () => {
+  it("preserves parent transcript markers when a headless child shuts down", () => {
+    initTheme("dark", false);
+    installStyledPatches();
+    const dispose = vi.fn();
+    const parent = new UiController({
+      install: () => { setStyledActive(true, ui); return { dispose }; },
+      setStyledActive,
+    });
+    const parentUi: any = {
+      ...ui, getEditorComponent: () => undefined,
+      setFooter: vi.fn(), setHeader: vi.fn(), setEditorComponent: vi.fn(),
+      setWorkingMessage: vi.fn(), setWorkingVisible: vi.fn(),
+      setWorkingIndicator: vi.fn(), setHiddenThinkingLabel: vi.fn(),
+    };
+    parent.sessionStart({ hasUI: true, mode: "tui", ui: parentUi } as any);
+    const userMessage = new UserMessageComponent("parent question");
+    const assistantMessage = new AssistantMessageComponent({
+      role: "assistant", content: [{ type: "text", text: "parent answer" }],
+    } as any);
+    const before = [rendered(userMessage), rendered(assistantMessage)];
+    expect(before[0]).toContain("❯");
+    expect(before[1]).toContain("●");
+
+    const child = new UiController();
+    child.sessionStart({ hasUI: false, mode: "print" } as any);
+    child.sessionShutdown();
+    expect([rendered(userMessage), rendered(assistantMessage)]).toEqual(before);
+    expect(dispose).not.toHaveBeenCalled();
+    expect(parentUi.setEditorComponent).not.toHaveBeenCalled();
+
+    parent.sessionShutdown();
+    expect(dispose).toHaveBeenCalledTimes(1);
+    expect(rendered(userMessage)).not.toContain("❯");
+    expect(rendered(assistantMessage)).not.toContain("●");
+  });
+
   it("calls originals, preserves custom renderers, gates fallback, and restores layout", () => {
     const originalRenderer = vi.fn();
     const display = vi.fn(function (this: any) { this.order.push("original"); return "kept"; });
