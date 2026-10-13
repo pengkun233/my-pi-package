@@ -87,10 +87,16 @@ describe("raw copy blocks", () => {
       { type: "message", message: { role: "assistant", stopReason: "aborted", content: [{ type: "text", text: "partial" }] } },
     ] as any)).toEqual(["raw"]);
   });
-  it("cancelling the native picker never writes the draft or calls /copy", async () => {
+  it("cancelling the overlay never writes the draft or calls /copy", async () => {
     const { commands } = harness(copyBlock);
-    const ctx: any = { hasUI: true, sessionManager: { getBranch: () => [{ type: "message", message: { role: "assistant", stopReason: "stop", content: [{ type: "text", text: "ok" }] } }] }, ui: { select: vi.fn(async () => undefined), setEditorText: vi.fn() } };
-    await commands.get("copy-block").handler("", ctx);
+    let view: any;
+    const ctx: any = { mode: "tui", hasUI: true, sessionManager: { getBranch: () => [{ type: "message", message: { role: "assistant", stopReason: "stop", content: [{ type: "text", text: "ok" }] } }] }, ui: {
+      custom: vi.fn((factory) => new Promise<void>((resolve) => {
+        view = factory({ requestRender: vi.fn(), terminal: { rows: 40 } }, {}, {}, resolve);
+      })), setEditorText: vi.fn(),
+    } };
+    const request = commands.get("copy-block").handler("", ctx);
+    view.handleInput("\x1b"); await request;
     expect(commands.has("copy")).toBe(false); expect(ctx.ui.setEditorText).not.toHaveBeenCalled();
   });
 });

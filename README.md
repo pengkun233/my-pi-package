@@ -135,9 +135,16 @@ The local-clock end time and monotonic elapsed time are custom session entries, 
 
 ### Source-block copying
 
-`/copy-block` first selects a completed assistant response on the current branch, then whole Markdown, a heading section, a consecutive blockquote or a fenced code block. Whole/section/quote selections preserve source Markdown. Code copies **only the interior**, without fences/language labels, preserving indentation and original line endings. Thinking, tool results, side chat and completion metadata are excluded. Built-in `/copy` and its shortcut are unchanged; native pickers do not reset the draft.
+`/copy-block` opens one keyboard-driven overlay in the interactive TUI, showing the message role/history position, block list and selected block's **original source preview**. It snapshots the current branch's persisted user and successfully completed assistant text, defaulting to the latest assistant message (or latest user message when there is no assistant). Tool/thinking/image content, failed or aborted responses, currently streaming text, side chat, summaries and completion metadata are excluded. User messages can be previewed and copied as **whole text only**; assistant messages offer whole Markdown, heading sections, consecutive blockquotes and fenced code interiors. Multiple text parts are joined with a newline.
 
-The lightweight scanner supports top-level ATX/setext headings and backtick/tilde fences (including unclosed fences). It is not a complete CommonMark parser: nested list/quote fences, lazy quote continuations and indented-code blocks are not separate selections; whole-response copying preserves those sources. Clipboard requests use Pi's native helper; SSH/OSC52 success cannot be acknowledged, so the notification says a copy was requested, not guaranteed.
+- **↑/↓** select a block; **Home/End** select the first/last block of the current message.
+- **←/→** browse earlier/later messages, including user context; **PgUp/PgDn** scroll the source preview.
+- **Enter** submits a clipboard request and keeps the panel open for further browsing/copying. Repeated Enter is ignored while that request is pending; errors appear in the panel and can be retried.
+- **Esc** closes without submitting a new copy request. An already submitted clipboard operation cannot be undone, but its late completion/error will not reopen or update a closed panel. Tree navigation, session replacement, reload and shutdown also close it; reopening takes a fresh branch snapshot.
+
+Whole/section/quote selections preserve source Markdown. Code copies **only the interior**, without fences/language labels, preserving indentation and original line endings (including CRLF). The raw preview wraps to fit; tabs are displayed as spaces and terminal controls as visible text, without changing the copied source. Wide screens use block/preview columns; narrow screens stack them, with reduced detail on very small terminals. Only visited messages are scanned and the selected preview layout is cached. Built-in `/copy` and its shortcut are unchanged; opening, copying and closing never modify the main editor draft. RPC/print modes have no copy overlay.
+
+The lightweight scanner supports top-level ATX/setext headings and backtick/tilde fences (including unclosed fences). It is not a complete CommonMark parser and does not add paragraph selections: nested list/quote fences, lazy quote continuations and indented-code blocks are not separate selections; whole-response copying preserves those sources. Clipboard requests use Pi's native helper; SSH/OSC52 success cannot be acknowledged, so the notification says a copy was requested, not guaranteed.
 
 ### Codex subscription usage
 
