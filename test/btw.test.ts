@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { initTheme } from "@earendil-works/pi-coding-agent";
-import { visibleWidth } from "@earendil-works/pi-tui";
+import { getThemeByName } from "../node_modules/@earendil-works/pi-coding-agent/dist/modes/interactive/theme/theme.js";
+import { visibleWidth, CURSOR_MARKER } from "@earendil-works/pi-tui";
 import btw, { SideOverlay } from "../extensions/btw/index.js";
 import { BTW_SYSTEM, mainSnapshot, SideThread } from "../extensions/btw/thread.js";
 
@@ -20,6 +21,30 @@ const entries: any = [{ id: "u", parentId: null, type: "message", timestamp: new
   { id: "a", parentId: "u", type: "message", timestamp: new Date().toISOString(), message: { ...answer("main completed answer"), content: [{ type: "text", text: "main completed answer" }, { type: "thinking", thinking: "private reasoning" }] } }];
 
 describe("isolated side conversation", () => {
+  it.each(["dark", "light"])("frames and paints the overlay and distinguishes speakers in %s", (name) => {
+    initTheme(name, false);
+    const theme = getThemeByName(name)!;
+    const thread = new SideThread("snapshot", model);
+    thread.messages.push({ role: "user", content: "用户问题", timestamp: Date.now() }, answer("agent reply"));
+    thread.partial = "streaming reply";
+    const view = new SideOverlay({ requestRender: vi.fn(), terminal: { rows: 40 } } as any, theme,
+      () => thread, vi.fn(), vi.fn(), vi.fn(), () => () => {}, thread.usage);
+    const fg = vi.spyOn(theme, "fg"), bg = vi.spyOn(theme, "bg");
+    const lines = view.render(80);
+    expect(lines[0]).toContain("╭"); expect(lines.at(-1)).toContain("╯");
+    expect(lines.every((line) => visibleWidth(line) === 80)).toBe(true);
+    expect(bg.mock.calls.filter(([token]) => token === "customMessageBg")).toHaveLength(lines.length);
+    expect(fg).toHaveBeenCalledWith("accent", "用户问题");
+    expect(fg).toHaveBeenCalledWith("text", "agent reply");
+    expect(fg).toHaveBeenCalledWith("text", "streaming reply");
+    expect(theme.fg("accent", "same")).not.toBe(theme.fg("text", "same"));
+    expect(lines.join("\n")).toContain(CURSOR_MARKER);
+    for (const width of [1, 4, 5, 20, 40]) {
+      expect(view.render(width).every((line) => visibleWidth(line) === width)).toBe(true);
+    }
+    expect(lines.length).toBeLessThanOrEqual(36);
+    view.dispose(); fg.mockRestore(); bg.mockRestore();
+  });
   it("snapshots the completed branch and excludes reasoning", () => {
     const snapshot = mainSnapshot(entries, "a");
     expect(snapshot).toContain("main completed answer"); expect(snapshot).not.toContain("private reasoning");
@@ -89,7 +114,7 @@ describe("isolated side conversation", () => {
     let view!: SideOverlay;
     const ctx: any = { mode: "tui", model, modelRegistry, sessionManager: { getEntries: () => entries, getLeafId: () => "a" }, ui: {
       notify: vi.fn(), setStatus: vi.fn(), custom: vi.fn((factory) => new Promise<void>((resolve) => {
-        view = factory({ requestRender: vi.fn(), terminal: { rows: 40 } }, { fg: (_: string, text: string) => text }, {}, resolve);
+        view = factory({ requestRender: vi.fn(), terminal: { rows: 40 } }, { fg: (_: string, text: string) => text, bg: (_: string, text: string) => text }, {}, resolve);
       })),
     } };
     const request = commands.get("btw").handler("first question", ctx);
