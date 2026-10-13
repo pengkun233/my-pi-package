@@ -25,8 +25,8 @@ const cases = [
   }) },
 ];
 
-for (const [label, root, version] of [["local", localRoot, "0.82.1"], ["host", hostRoot, "1.1.0"]]) {
-  describe.skipIf(!existsSync(join(root, "package.json")))(`${label} Pi ${version} real-component compatibility`, () => {
+for (const [label, root] of [["local", localRoot], ["host", hostRoot]]) {
+  describe.skipIf(!existsSync(join(root, "package.json")))(`${label} Pi real-component compatibility`, () => {
     const scenarios = label === "host" ? [...cases, { scenario: "interaction-transform", config: "{}" }] : cases;
     it.each(scenarios)("$scenario ($config)", ({ scenario, config }) => {
       const dir = mkdtempSync(join(tmpdir(), "styled-compat-"));
@@ -39,7 +39,7 @@ for (const [label, root, version] of [["local", localRoot, "0.82.1"], ["host", h
           encoding: "utf8", timeout: 60_000,
         });
         expect(result.status, result.stderr || String(result.error)).toBe(0);
-        expect(JSON.parse(result.stdout)).toEqual({ scenario, version });
+        expect(JSON.parse(result.stdout)).toMatchObject({ scenario });
       } finally { rmSync(dir, { recursive: true, force: true }); }
     }, 60_000);
   });

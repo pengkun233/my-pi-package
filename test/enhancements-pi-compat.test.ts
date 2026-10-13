@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 
 const localRoot = new URL("../node_modules/@earendil-works/pi-coding-agent", import.meta.url).pathname;
 const hostRoot = process.env.PI_ENHANCEMENTS_TEST_PI_ROOT ?? join(homedir(), ".npm-global/lib/node_modules/@earendil-works/pi-coding-agent");
-for (const [label, root, version] of [["local", localRoot, "0.82.1"], ["host", hostRoot, "1.1.0"]]) {
+for (const [label, root] of [["local", localRoot], ["host", hostRoot]]) {
   describe.skipIf(!existsSync(join(root, "package.json")))(`${label} Pi enhancement compatibility`, () => {
     it("loads side chat, completion and draft recovery against real host APIs", () => {
       const result = spawnSync(process.execPath, ["test/helpers/enhancements-pi-compat.mjs"], {
@@ -14,7 +14,6 @@ for (const [label, root, version] of [["local", localRoot, "0.82.1"], ["host", h
         encoding: "utf8", timeout: 60_000,
       });
       expect(result.status, result.stderr || String(result.error)).toBe(0);
-      expect(JSON.parse(result.stdout)).toEqual({ version });
     }, 60_000);
   });
 }

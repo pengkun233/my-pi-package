@@ -47,7 +47,7 @@ export function renderGenericCall(args: unknown, theme: Theme, ctx?: any, label 
 export function renderGenericResult(result: unknown, options: any, theme: Theme, ctx?: any) {
   const content = bounded(textualResult(result));
   const failed = !!ctx?.isError;
-  let output = `${style(theme, "separator", "└─")} ${style(theme, failed ? "error" : "success", failed ? "Error" : "Done")}`;
+  let output = `${style(theme, "borderMuted", "└─")} ${style(theme, failed ? "error" : "success", failed ? "Error" : "Done")}`;
   if (!options?.expanded) return new Text(`${output}${style(theme, "dim", " • expand to view")}`, 0, 0);
   output += content.split("\n").map((line) => `\n   ${style(theme, "toolOutput", line)}`).join("");
   return new Text(output, 0, 0);

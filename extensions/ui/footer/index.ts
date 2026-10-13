@@ -98,7 +98,7 @@ export class FooterService {
         const row1 = buildFooterContent(layout, config.row1Left, config.row1Right, width);
         const statusRows = buildFooterStatusRows(layout, config.row2Left, statuses, width, config.row2Right);
         let divider = "─".repeat(width);
-        try { divider = theme.fg("separator" as any, divider); } catch {}
+        try { divider = theme.fg("borderMuted" as any, divider); } catch {}
         return [row1, divider, ...statusRows];
       },
       dispose: () => {

@@ -147,7 +147,7 @@ export function renderSegment(id: SegmentId, ctx: FooterLayoutContext): string |
       if (!ctx.sessionName) return undefined;
       return color("muted", `Session: ${truncateToWidth(ctx.sessionName, 30)}`);
     }
-    case "separator": return color("separator", "|");
+    case "separator": return color("borderMuted", "|");
   }
 }
 

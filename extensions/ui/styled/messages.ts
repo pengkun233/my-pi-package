@@ -154,7 +154,7 @@ export function createSubagentNotification(message: any, markdownTheme: any, the
     box.addChild(new Text(`${fg(theme, glyphToken, glyph)} ${fg(theme, "toolTitle", title)} ${fg(theme, "dim", view.label)}`, 0, 0));
     const status = view.status === "completed" ? "Completed" : view.status === "failed" ? "Failed" : "Paused";
     const duration = view.durationMs === undefined ? "" : ` ${fg(theme, "dim", `· ${formatDuration(view.durationMs)}`)}`;
-    box.addChild(new Text(`${fg(theme, "separator", "└─")} ${fg(theme, glyphToken, status)}${duration}`, 0, 0));
+    box.addChild(new Text(`${fg(theme, "borderMuted", "└─")} ${fg(theme, glyphToken, status)}${duration}`, 0, 0));
     if (!expanded) {
       box.addChild(new Text(`   ${fg(theme, "dim", view.summary)} ${fg(theme, "dim", "· expand to view")}`, 0, 0));
       return;
@@ -197,7 +197,7 @@ export function createCustomMessage(message: any, markdownTheme: any, theme?: Th
       const name = typeof message?.details?.title === "string" ? message.details.title : String(message?.customType ?? "custom");
       const title = theme ? fg(theme, "toolTitle", theme.bold("Custom message")) : "Custom message";
       const header = `${fg(theme, "accent", "✓")} ${title} ${fg(theme, "dim", name)}`;
-      const status = `${fg(theme, "separator", "└─")} ${fg(theme, "success", "Done")}`;
+      const status = `${fg(theme, "borderMuted", "└─")} ${fg(theme, "success", "Done")}`;
       if (!expanded) return ["", fit(header), fit(`${status}${fg(theme, "dim", " • expand to view")}`)];
       const inset = width >= 4 ? 3 : 0;
       const lines = markdown.render(Math.max(1, width - inset))

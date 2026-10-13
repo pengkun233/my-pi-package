@@ -40,7 +40,7 @@ function statusResult(result: any, options: any, theme: Theme, ctx: any, countLa
   const failed = !!ctx?.isError;
   const label = failed ? "Error" : "Done";
   const count = !failed && lines.length && countLabel ? ` • ${lines.length} ${countLabel}` : "";
-  let display = `${fg(theme, "separator", "└─")} ${fg(theme, failed ? "error" : "success", label)}${fg(theme, "dim", count)}`;
+  let display = `${fg(theme, "borderMuted", "└─")} ${fg(theme, failed ? "error" : "success", label)}${fg(theme, "dim", count)}`;
   if (!options?.expanded && lines.length) display += fg(theme, "dim", " • expand to view");
   if (options?.expanded) display += lines.map((line) => `\n   ${fg(theme, "toolOutput", line)}`).join("");
   return text(ctx?.lastComponent, display);
@@ -52,7 +52,7 @@ function simpleCall(label: string, summary: (args: any) => string, remember?: (a
   return (args: any, theme: Theme, ctx: any) => {
     remember?.(args, ctx);
     let display = header(label, summary(args), theme, ctx);
-    if (ctx?.isPartial) display += `\n${fg(theme, "separator", "└─")} ${fg(theme, "toolOutput", "Running...")}`;
+    if (ctx?.isPartial) display += `\n${fg(theme, "borderMuted", "└─")} ${fg(theme, "toolOutput", "Running...")}`;
     return text(ctx?.lastComponent, display);
   };
 }
@@ -78,13 +78,13 @@ const ordinaryResult = (countLabel: string): ToolRenderer =>
 const writeResult: ToolRenderer = (result, options, theme, ctx) => {
   if (ctx?.isError) return statusResult(result, options, theme, ctx);
   const count = Number(ctx?.state?.lineCount ?? 0);
-  return text(ctx?.lastComponent, `${fg(theme, "separator", "└─")} ${fg(theme, "success", "Done")}${count ? fg(theme, "dim", ` • ${count} lines`) : ""}`);
+  return text(ctx?.lastComponent, `${fg(theme, "borderMuted", "└─")} ${fg(theme, "success", "Done")}${count ? fg(theme, "dim", ` • ${count} lines`) : ""}`);
 };
 
 const editResult: ToolRenderer = (result, options, theme, ctx) => {
   if (ctx?.isError) return statusResult(result, options, theme, ctx);
   const count = Number(ctx?.state?.editCount ?? 0);
-  let display = `${fg(theme, "separator", "└─")} ${fg(theme, "success", "Done")}${count ? fg(theme, "dim", ` • ${count} edits`) : ""}`;
+  let display = `${fg(theme, "borderMuted", "└─")} ${fg(theme, "success", "Done")}${count ? fg(theme, "dim", ` • ${count} edits`) : ""}`;
   if (typeof result?.details?.diff === "string") {
     if (options?.expanded) {
       let diff = result.details.diff;
