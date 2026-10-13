@@ -43,6 +43,13 @@ describe("package boundary", () => {
     expect(pkg.pi.themes).toEqual(["./themes"]);
   });
 
+  it("ships Auto Drive as an explicit skill with the exact implement dispatch", () => {
+    const skill = readFileSync(join(process.cwd(), "skills", "auto-drive", "SKILL.md"), "utf8");
+    expect(skill).toContain("name: auto-drive");
+    expect(skill).toContain("disable-model-invocation: true");
+    expect(skill).toContain("```text\n/implement <ticket 链接>\n```");
+  });
+
   it("ships Loop as a model-invoked natural-language skill", () => {
     const skill = readFileSync(join(process.cwd(), "skills", "loop", "SKILL.md"), "utf8");
     expect(skill).toContain("name: loop");
