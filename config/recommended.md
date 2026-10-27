@@ -16,6 +16,8 @@
 - **主题**：推荐 `slop`，可通过 `/settings` 选择；目标机器已有主题偏好时保留。主题与资源清单以 `package.json` 和 `themes/` 为准。
 - **附加包**：需要 web、MCP、RTK、子代理、图像生成等能力时，参考 [packages.json](packages.json) 的候选来源，逐项确认是否需要及当前兼容性。这是参考清单，不是可直接覆盖 `settings.json` 的结构，也不是必须全装的依赖。
 - **技能过滤**：若采纳 `packages.json` 中的 `mattPocockSkills`，将该对象作为 Pi `packages` 数组中的一项，保留精确技能路径和空的 extensions/prompts/themes 过滤器。先核对指定 ref 中路径仍存在；保留用户自己的资源开关。
+- **前端设计技能订阅**：需要 `frontend-design` 时，将 `packages.json` 中的 `frontendDesignSkills` 对象合并为 Pi `packages` 数组的一项；技能直接来自 `anthropics/skills`，不收录到本包。先检查同一仓库是否已注册，已有时合并过滤器并保留其他已启用资源；新安装仅启用 `skills/frontend-design/SKILL.md`。来源不固定 ref，通过 `pi update --extensions` 跟进上游。安装本包不会自动注册该订阅。
+- **前端提示词**：本包提供 `/frontend-humanize` 和 `/frontend-refine`。目标机器若有同名本地模板，先比较内容；一致时可在授权后备份并移出 prompts 目录，避免重复加载，不一致时由用户选择保留版本。
 - **子代理兼容**：参考清单中的 `npm:pi-subagents` 与 Herdr 计数所验证的 `@tintinweb/pi-subagents` 不是同一包。需要机器人任务标记时核对实际安装包是否提供 `subagents:started/completed/failed` 事件；不要默默替换已有子代理包。
 - **全局交互偏好**：需要中文、语音输入容错及任务推进约定时，参考 [global-agents.md](global-agents.md)，按授权合并到实际 agent 目录下的 `AGENTS.md`。Pi 的包资源发现不会自动加载此参考文件。旧安装脚本留下的 managed block 现在只是普通文本；按内容合并，避免重复，保留用户其他指令。
 - **外部依赖**：RTK 优化器需要可用的 `rtk`；Codex 相关功能需要目标机器自己的登录；MCP 和 web provider 需要各自配置。只在需要时配置依赖，不从另一台机器复制凭据。

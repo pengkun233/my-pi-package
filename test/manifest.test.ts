@@ -72,7 +72,7 @@ describe("package boundary", () => {
   });
 
   it("uses Pi-supported prompt argument placeholders", () => {
-    for (const name of ["Get-Shit-Done.md", "Neat-Freak.md", "aye.md"]) {
+    for (const name of ["Get-Shit-Done.md", "Neat-Freak.md", "aye.md", "frontend-humanize.md", "frontend-refine.md"]) {
       const prompt = readFileSync(join(process.cwd(), "prompts", name), "utf8");
       expect(prompt).not.toContain("${ARGUMENTS}");
     }
@@ -90,6 +90,13 @@ describe("package boundary", () => {
       "npm:@yusukeshib/pi-stash",
       "npm:@plannotator/pi-extension",
     ]);
+    expect(policy.frontendDesignSkills).toEqual({
+      source: "git:github.com/anthropics/skills",
+      extensions: [],
+      skills: ["skills/frontend-design/SKILL.md"],
+      prompts: [],
+      themes: [],
+    });
     expect(policy.mattPocockSkills).toEqual({
       source: "git:github.com/mattpocock/skills@release/v1.2",
       extensions: [],

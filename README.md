@@ -1,6 +1,6 @@
 # my-pi-package
 
-Private personal [Pi](https://pi.dev) package for reproducing this setup on another machine. It bundles an always-on TUI, isolated side chat, completion metadata, source-block copying, a session-scoped Loop scheduler, progressive memory, a prompt-snippet picker, Codex subscription usage, independent prompt/configuration audit skills, three user-invoked workflow skills, three prompt templates, eleven selectable themes, recommended global interaction preferences, and reference Herdr configuration. It contains no credentials, sessions, memory data, or other machine state.
+Private personal [Pi](https://pi.dev) package for reproducing this setup on another machine. It bundles an always-on TUI, isolated side chat, completion metadata, source-block copying, a session-scoped Loop scheduler, progressive memory, a prompt-snippet picker, Codex subscription usage, independent prompt/configuration audit skills, three user-invoked workflow skills, five prompt templates, eleven selectable themes, recommended global interaction preferences, and reference Herdr configuration. It contains no credentials, sessions, memory data, or other machine state.
 
 ## Install
 
@@ -30,6 +30,8 @@ Three other bundled skills are user-invoked only:
 - `/skill:project-init` initializes a target directory as a Git repository with concise `AGENTS.md`, `README.md`, and `ai_docs/` documentation, plus a `CLAUDE.md` symlink.
 - `/skill:wait-what-cn` re-pitches the previous response in concise technical Chinese, adds missing context, and preserves the current project's domain language.
 - `/skill:tidy-memory` periodically audits project memory and `ai_docs/engineering.md`, using repository evidence to resolve conflicts and remove duplicate or stale knowledge. `/Neat-Freak` updates development experience in `ai_docs/engineering.md`, affected references in `ai_docs/reference.md`, and newly learned memory without duplicating content. `README.md` is generated or updated only after a human explicitly declares a project or milestone complete; repository `CLAUDE.md` and `AGENTS.md` files remain human-maintained and read-only to both workflows.
+
+The optional `frontend-design` skill stays subscribed directly to `anthropics/skills`; it is not vendored here. See `frontendDesignSkills` in [config/packages.json](config/packages.json) and the merge instructions in [config/recommended.md](config/recommended.md). Installing this package alone does not register that upstream subscription.
 
 ### UI
 
@@ -235,6 +237,8 @@ Prompt templates:
 - `/Get-Shit-Done`
 - `/Neat-Freak`
 - `/aye`
+- `/frontend-humanize`
+- `/frontend-refine`
 
 Bundled themes:
 

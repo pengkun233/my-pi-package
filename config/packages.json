@@ -9,6 +9,13 @@
     "npm:@yusukeshib/pi-stash",
     "npm:@plannotator/pi-extension"
   ],
+  "frontendDesignSkills": {
+    "source": "git:github.com/anthropics/skills",
+    "extensions": [],
+    "skills": ["skills/frontend-design/SKILL.md"],
+    "prompts": [],
+    "themes": []
+  },
   "mattPocockSkills": {
     "source": "git:github.com/mattpocock/skills@release/v1.2",
     "extensions": [],
