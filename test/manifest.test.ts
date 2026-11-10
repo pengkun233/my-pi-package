@@ -33,6 +33,7 @@ describe("package boundary", () => {
       "./extensions/memory/index.ts",
       "./extensions/prompt-snippets/index.ts",
       "./extensions/openai-usage.ts",
+      "./extensions/openai-fast/index.ts",
       "./extensions/btw/index.ts",
       "./extensions/completion/index.ts",
       "./extensions/copy-block/index.ts",
@@ -86,7 +87,6 @@ describe("package boundary", () => {
       "npm:pi-rtk-optimizer",
       "npm:pi-subagents",
       "npm:pi-codex-image-gen",
-      "npm:pi-openai-codex-fast",
       "npm:@yusukeshib/pi-stash",
       "npm:@plannotator/pi-extension",
     ]);

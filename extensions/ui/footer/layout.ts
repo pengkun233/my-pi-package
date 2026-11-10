@@ -175,8 +175,8 @@ const THINKING_SHORT_CODES: Record<string, string> = {
   max: "MX",
 };
 
-/** One narrow-screen row; reserve thinking/context space before clipping the model. */
-export function buildCompactFooterContent(ctx: FooterLayoutContext, width: number): string {
+/** One narrow-screen row; reserve fast/thinking/context space before clipping the model. */
+export function buildCompactFooterContent(ctx: FooterLayoutContext, width: number, fastStatus?: string): string {
   if (!Number.isFinite(width) || width <= 0) return "";
   width = Math.floor(width);
   const color = (token: string, text: string): string => {
@@ -192,7 +192,8 @@ export function buildCompactFooterContent(ctx: FooterLayoutContext, width: numbe
     ? `${Math.min(100, Math.max(0, percent!)).toFixed(1)}%`
     : "?";
   const context = color("muted", `ctx ${tokens}${percentLabel}`);
-  const details = `${thinking} ${context}`;
+  const fast = sanitizeStatusText(fastStatus ?? "");
+  const details = [fast, thinking, context].filter(Boolean).join(" ");
   const remaining = width - visibleWidth(details) - 1;
   const model = color("text", sanitizeStatusText(ctx.model?.name || ctx.model?.id || "?"));
   const clippedModel = remaining > 0 ? truncateToWidth(model, remaining, "") : "";

@@ -1,6 +1,6 @@
 # my-pi-package
 
-Private personal [Pi](https://pi.dev) package for reproducing this setup on another machine. It bundles an always-on TUI, isolated side chat, completion metadata, source-block copying, a session-scoped Loop scheduler, progressive memory, a prompt-snippet picker, Codex subscription usage, independent prompt/configuration audit skills, three user-invoked workflow skills, five prompt templates, eleven selectable themes, recommended global interaction preferences, and reference Herdr configuration. It contains no credentials, sessions, memory data, or other machine state.
+Private personal [Pi](https://pi.dev) package for reproducing this setup on another machine. It bundles an always-on TUI, isolated side chat, completion metadata, source-block copying, a session-scoped Loop scheduler, progressive memory, a prompt-snippet picker, Codex subscription usage, an OpenAI Fast toggle, independent prompt/configuration audit skills, three user-invoked workflow skills, five prompt templates, eleven selectable themes, recommended global interaction preferences, and reference Herdr configuration. It contains no credentials, sessions, memory data, or other machine state.
 
 ## Install
 
@@ -78,7 +78,7 @@ The footer adapts on every render, including terminal resize, using fixed 80/40-
 - **40–79 columns:** exactly one line with the model name (or ID, without a provider prefix), full uppercase thinking level (such as `HIGH`), and actual context token usage plus percentage (`ctx 32.1k 25.1%`).
 - **Below 40 columns:** the same single line, with thinking short codes: `O` (off), `MI` (minimal), `L` (low), `M` (medium), `H` (high), `XH` (xhigh), `MX` (max).
 
-Narrow layouts hide all extension statuses, path/session, cumulative input/output token counts and cost, with no top blank line, divider or second row, regardless of configured wide-screen segments. Model text is clipped first to preserve thinking/context; at extremely small widths even those fields may be clipped. Unknown model/thinking use `?`, and unavailable context is `ctx ?`, never a fabricated `0%`. No model aliases are inferred.
+Narrow layouts retain the OpenAI Fast indicator when enabled, while hiding other extension statuses, path/session, cumulative input/output token counts and cost, with no top blank line, divider or second row, regardless of configured wide-screen segments. Model text is clipped first to preserve Fast/thinking/context; at extremely small widths even those fields may be clipped. Unknown model/thinking use `?`, and unavailable context is `ctx ?`, never a fabricated `0%`. No model aliases are inferred.
 
 ### Loop
 
@@ -147,6 +147,19 @@ The local-clock end time and monotonic elapsed time are custom session entries, 
 Whole/section/quote selections preserve source Markdown. Code copies **only the interior**, without fences/language labels, preserving indentation and original line endings (including CRLF). The raw preview wraps to fit; tabs are displayed as spaces and terminal controls as visible text, without changing the copied source. Wide screens use block/preview columns; narrow screens stack them, with reduced detail on very small terminals. Only visited messages are scanned and the selected preview layout is cached. Built-in `/copy` and its shortcut are unchanged; opening, copying and closing never modify the main editor draft. RPC/print modes have no copy overlay.
 
 The lightweight scanner supports top-level ATX/setext headings and backtick/tilde fences (including unclosed fences). It is not a complete CommonMark parser and does not add paragraph selections: nested list/quote fences, lazy quote continuations and indented-code blocks are not separate selections; whole-response copying preserves those sources. Clipboard requests use Pi's native helper; SSH/OSC52 success cannot be acknowledged, so the notification says a copy was requested, not guaranteed.
+
+### OpenAI Fast mode
+
+`extensions/openai-fast/` replaces the external `pi-openai-codex-fast` package with a small request hook:
+
+- `/fast` toggles Fast mode; `/fast on`, `/fast off`, and `/fast status` set or inspect it explicitly.
+- New sessions start off. The setting is saved as non-context session metadata and restored from the current branch on reload, resume, fork, and tree navigation; it does not enable Fast globally.
+- Enabled, supported requests receive `service_tier: "priority"`. This reuses the selected `openai` / `openai-responses` or legacy `openai-codex` / `openai-codex-responses` provider and its existing login. It does not register providers or change models, thinking levels, prompts, tools, or credentials.
+- Supported models are GPT-6.1 Sol/Terra, GPT-6 Astra/Sol/Luna, GPT-5.6 Sol/Terra/Luna, GPT-5.5, and GPT-5.4. Other models, provider/API pairs, and mismatched payloads are left unchanged.
+- The footer shows `Fast` while enabled, including below 80 columns; `Fast (N/A)` means the toggle is on but the current model is unsupported. Turning it off clears the indicator.
+- Fast can increase subscription usage or API charges. The indicator reports the requested setting; actual server processing and speed depend on the service.
+
+The request uses `priority` for compatibility with ChatGPT OAuth, which currently rejects the `fast` wire spelling. No additional login or local configuration file is required.
 
 ### Codex subscription usage
 

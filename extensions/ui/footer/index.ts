@@ -72,7 +72,7 @@ export class FooterService {
         const usage = collectUsage(this.ctx);
         const git = this.cache?.get();
         const context = this.ctx.getContextUsage?.();
-        const statuses = collectExtensionStatusTexts(this.footerData?.getExtensionStatuses() ?? new Map());
+        const statusMap = this.footerData?.getExtensionStatuses() ?? new Map();
         const layout: FooterLayoutContext = {
           theme,
           model: this.ctx.model,
@@ -94,9 +94,9 @@ export class FooterService {
           contextBar: config.contextBar,
           sessionName: this.ctx.sessionManager?.getSessionName?.(),
         };
-        if (width < 80) return [buildCompactFooterContent(layout, width)];
+        if (width < 80) return [buildCompactFooterContent(layout, width, statusMap.get("openai-fast"))];
         const row1 = buildFooterContent(layout, config.row1Left, config.row1Right, width);
-        const statusRows = buildFooterStatusRows(layout, config.row2Left, statuses, width, config.row2Right);
+        const statusRows = buildFooterStatusRows(layout, config.row2Left, collectExtensionStatusTexts(statusMap), width, config.row2Right);
         let divider = "─".repeat(width);
         try { divider = theme.fg("borderMuted" as any, divider); } catch {}
         return [row1, divider, ...statusRows];

@@ -5,7 +5,7 @@ import * as footerConfig from "../extensions/ui/footer/config.js";
 import { buildFooterContent, buildFooterStatusRows } from "../extensions/ui/footer/layout.js";
 
 describe("footer adapter", () => {
-  it("switches the same component at 39/40/79/80 columns without leaking wide-only data", () => {
+  it("switches fast status and widths on the same component without leaking other narrow-screen statuses", () => {
     const configSpy = vi.spyOn(footerConfig, "loadFooterConfig").mockReturnValue(footerConfig.DEFAULT_FOOTER_CONFIG);
     let factory: any;
     let contextUsage: any = { tokens: 32_100, contextWindow: 128_000, percent: 25.1 };
@@ -50,19 +50,29 @@ describe("footer adapter", () => {
           width, config.row2Right)];
     };
     try {
-      for (const width of [80, 79, 40, 39, 1, 2, 12, 80, 120, 39]) {
-        const rows = component.render(width);
-        expect(rows.every((line: string) => visibleWidth(line) <= width)).toBe(true);
-        if (width >= 80) {
-          expect(rows).toEqual(expectedWide(width));
-          expect(rows.join("\n")).toContain("Provider Display / Model Name");
-          expect(rows.join("\n")).toContain("↑100 ↓2 | $1.234");
-          expect(rows.join("\n")).toContain("Session: Secret Session");
-          expect(rows.join("\n")).toContain("Memory 4");
-        } else {
-          expect(rows).toHaveLength(1);
-          expect(rows[0]).not.toMatch(/[\r\n]|─|π|Provider|repository|Session|Secret|MCP|Memory|extension|↑|↓|\$/);
-          if (width >= 39) expect(rows[0]).toBe(`Model Name ${width < 40 ? "H" : "HIGH"} ctx 32.1k 25.1%`);
+      for (const fastStatus of [undefined, "Fast", "Fast (N/A)", undefined]) {
+        if (fastStatus) statuses.set("openai-fast", fastStatus);
+        else statuses.delete("openai-fast");
+        for (const width of [80, 79, 40, 39, 1, 2, 12, 80, 120, 39]) {
+          const rows = component.render(width);
+          expect(rows.every((line: string) => visibleWidth(line) <= width)).toBe(true);
+          if (width >= 80) {
+            expect(rows).toEqual(expectedWide(width));
+            expect(rows.join("\n")).toContain("Provider Display / Model Name");
+            expect(rows.join("\n")).toContain("↑100 ↓2 | $1.234");
+            expect(rows.join("\n")).toContain("Session: Secret Session");
+            expect(rows.join("\n")).toContain("Memory 4");
+            if (fastStatus) expect(rows.join("\n")).toContain(fastStatus);
+          } else {
+            expect(rows).toHaveLength(1);
+            expect(rows[0]).not.toMatch(/[\r\n]|─|π|Provider|repository|Session|Secret|MCP|Memory|extension|↑|↓|\$/);
+            if (width >= 39) {
+              const details = `${width < 40 ? "H" : "HIGH"} ctx 32.1k 25.1%`;
+              if (fastStatus) expect(rows[0]).toContain(`${fastStatus} ${details}`);
+              else expect(rows[0]).toBe(`Model Name ${details}`);
+            }
+          }
+          if (!fastStatus) expect(rows.join("\n")).not.toContain("Fast");
         }
       }
       expect(component.render(0)).toEqual([]);

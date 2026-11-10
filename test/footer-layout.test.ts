@@ -270,6 +270,37 @@ describe("footer layout", () => {
     expect(stripAnsi(buildCompactFooterContent(crowded, 12))).toBe("XH ctx 61.7%");
   });
 
+  it.each(["Fast", "Fast (N/A)"])("reserves %s before thinking/context and clips ANSI model text first", (fastStatus) => {
+    const crowded = {
+      ...context,
+      theme: rgbTheme({ text: "#ffffff", thinkingXhigh: "#ff0000", muted: "#aaaaaa" }),
+      model: { id: "unchanged-model-id", name: `\x1b[32m中文模型-${"很长".repeat(30)}\x1b[0m` },
+      thinkingLevel: "xhigh",
+      contextTokens: 32_100,
+      contextPercent: 25.1,
+    };
+    const styledStatus = `\n\t\x1b[33m${fastStatus.replace(" ", "\n\t")}\u0007\x1b[0m\t\n`;
+    for (const width of [0, 1, 2, 39, 40, 79, 80]) {
+      const output = buildCompactFooterContent(crowded, width, styledStatus);
+      const plain = stripAnsi(output);
+      expect(visibleWidth(output)).toBeLessThanOrEqual(width);
+      expect(plain).not.toMatch(/[\r\n\t\u0007]/);
+      if (width >= 39) {
+        expect(output).toContain("\x1b[33m");
+        expect(plain).toMatch(/^中文/);
+        expect(plain.endsWith(`${fastStatus} ${width < 40 ? "XH" : "XHIGH"} ctx 32.1k 25.1%`)).toBe(true);
+        expect(plain).not.toContain("unchanged-model-id");
+      }
+    }
+    expect(stripAnsi(buildCompactFooterContent(crowded, 1, styledStatus))).toBe("F");
+    expect(stripAnsi(buildCompactFooterContent(crowded, 2, styledStatus))).toBe("Fa");
+  });
+
+  it.each([undefined, "", " \n\t\u0007 "])("omits cleared or blank fast status %j", (fastStatus) => {
+    const ctx = { ...context, model: { id: "Model Name" }, thinkingLevel: "high", contextPercent: 25.1 };
+    expect(buildCompactFooterContent(ctx, 40, fastStatus)).toBe("Model Name HIGH ctx 25.1%");
+  });
+
   it("handles unknown data without inventing a model alias, thinking level or zero usage", () => {
     expect(buildCompactFooterContent(context, 40)).toBe("? ? ctx ?");
     expect(buildCompactFooterContent({ ...context, model: { id: "original-id" } }, 40))
