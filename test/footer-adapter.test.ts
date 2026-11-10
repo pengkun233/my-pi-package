@@ -84,6 +84,50 @@ describe("footer adapter", () => {
     }
   });
 
+  it("keeps context visible between compaction and the next assistant usage", () => {
+    const configSpy = vi.spyOn(footerConfig, "loadFooterConfig").mockReturnValue(footerConfig.DEFAULT_FOOTER_CONFIG);
+    let factory: any;
+    let contextUsage: any = { tokens: 32_100, contextWindow: 128_000, percent: 25.1 };
+    const ctx: any = {
+      cwd: "/definitely/not/a/repository",
+      model: { provider: "provider-id", id: "model-id", name: "Model Name", contextWindow: 128_000 },
+      modelRegistry: { getProviderDisplayName: () => "Provider Display" },
+      thinkingLevel: "high",
+      ui: { setFooter: (value: unknown) => { factory = value; } },
+      sessionManager: { getBranch: () => [] },
+      getContextUsage: () => contextUsage,
+    };
+    const service = new FooterService(ctx, () => true);
+    service.install();
+    const component = factory(
+      { requestRender: vi.fn() },
+      { fg: (_token: string, text: string) => text },
+      { getGitBranch: () => null, getExtensionStatuses: () => new Map(), onBranchChange: () => vi.fn() },
+    );
+    const stripAnsi = (value: string) => value.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "");
+    const firstRow = () => stripAnsi(component.render(120)[0]);
+    try {
+      expect(firstRow()).toContain("32.1k / 128k · 25.1%");
+      // Pi deliberately invalidates pre-compaction usage until a new assistant response.
+      contextUsage = { tokens: null, contextWindow: 128_000, percent: null };
+      const pending = firstRow();
+      expect(pending).toContain("▋".repeat(18));
+      expect(pending).toContain("? / 128k · ?%");
+      expect(pending).not.toMatch(/32\.1k|25\.1%|0\.0%|NaN/);
+      for (const width of [39, 79, 80, 120]) {
+        const rows = component.render(width);
+        expect(rows.every((line: string) => visibleWidth(line) <= width)).toBe(true);
+        if (width < 80) expect(rows[0]).toContain("ctx ?");
+      }
+      contextUsage = { tokens: 12_800, contextWindow: 128_000, percent: 10 };
+      expect(firstRow()).toContain("12.8k / 128k · 10.0%");
+    } finally {
+      component.dispose();
+      service.dispose();
+      configSpy.mockRestore();
+    }
+  });
+
   it("keeps cumulative tokens but uses the latest assistant response for cache hit rate", () => {
     let factory: any;
     const branch: any[] = [

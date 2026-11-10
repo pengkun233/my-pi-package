@@ -71,13 +71,15 @@ function gradientColor(theme: FooterLayoutContext["theme"], config: ContextBarCo
 
 function contextLabel(ctx: FooterLayoutContext, config: ContextBarConfig, compact = false): string {
   const labels: string[] = [];
-  if (!compact && ctx.contextTokens !== undefined) {
-    const current = formatContextTokens(ctx.contextTokens);
+  if (!compact && (ctx.contextTokens !== undefined || !Number.isFinite(ctx.contextPercent))) {
+    const current = Number.isFinite(ctx.contextTokens) ? formatContextTokens(ctx.contextTokens!) : "?";
     labels.push(config.showContextLimit && ctx.contextWindow
       ? `${current} / ${formatContextTokens(ctx.contextWindow)}`
       : current);
   }
-  if (config.showPercent && ctx.contextPercent !== undefined) labels.push(`${Math.min(100, Math.max(0, ctx.contextPercent)).toFixed(1)}%`);
+  if (config.showPercent) labels.push(Number.isFinite(ctx.contextPercent)
+    ? `${Math.min(100, Math.max(0, ctx.contextPercent!)).toFixed(1)}%`
+    : "?%");
   return labels.join(" · ");
 }
 
@@ -94,7 +96,7 @@ function renderContextBar(ctx: FooterLayoutContext): string {
     : config.responsive && terminalWidth < 110
       ? Math.min(config.barWidth, 10)
       : config.barWidth;
-  const percent = Math.min(100, Math.max(0, ctx.contextPercent ?? 0));
+  const percent = Number.isFinite(ctx.contextPercent) ? Math.min(100, Math.max(0, ctx.contextPercent!)) : 0;
   const filled = Math.round(percent / 100 * barWidth);
   let bar = "";
   for (let index = 0; index < barWidth; index++) {
@@ -140,7 +142,8 @@ export function renderSegment(id: SegmentId, ctx: FooterLayoutContext): string |
     }
     case "cost": return ctx.cost > 0 ? color("muted", `$${ctx.cost.toFixed(3)}`) : undefined;
     case "context": {
-      if (ctx.contextPercent === undefined) return undefined;
+      // Compaction invalidates usage until the next response; keep an unknown placeholder.
+      if (!Number.isFinite(ctx.contextPercent) && !(ctx.contextWindow && ctx.contextWindow > 0)) return undefined;
       return renderContextBar(ctx);
     }
     case "session": {

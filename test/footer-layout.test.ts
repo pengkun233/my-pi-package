@@ -180,6 +180,35 @@ describe("footer layout", () => {
     expect(stripAnsi(output)).toBe(`${"▋".repeat(18)} 123.5k / 200k · 61.7%`);
   });
 
+  it.each([undefined, Number.NaN, Number.POSITIVE_INFINITY])("keeps an unfilled context bar for unknown usage %s", (contextPercent) => {
+    const ctx = {
+      ...context,
+      theme: rgbTheme({ borderAccent: "#00ff00", accent: "#00ff00", dim: "#aaaaaa", borderMuted: "#444444" }),
+      contextWindow: 128_000,
+      contextPercent,
+      terminalWidth: 120,
+    };
+    const output = renderSegment("context", ctx)!;
+    expect(stripAnsi(output)).toBe(`${"▋".repeat(18)} ? / 128k · ?%`);
+    expect(output).toContain("\x1b[38;2;68;68;68m");
+    expect(output).not.toContain("\x1b[38;2;0;255;0m");
+    expect(renderSegment("context", {
+      ...ctx, contextBar: { ...DEFAULT_CONTEXT_BAR_CONFIG, mode: "text" },
+    })).toBe("? / 128k · ?%");
+    expect(renderSegment("context", {
+      ...ctx, contextBar: { ...DEFAULT_CONTEXT_BAR_CONFIG, mode: "text", showPercent: false, showContextLimit: false },
+    })).toBe("?");
+    expect(renderSegment("context", { ...ctx, terminalWidth: 50 })).toBe("?% ctx");
+  });
+
+  it("distinguishes zero context usage from unknown usage and unavailable context", () => {
+    expect(renderSegment("context", context)).toBeUndefined();
+    const output = renderSegment("context", {
+      ...context, contextTokens: 0, contextWindow: 128_000, contextPercent: 0, terminalWidth: 120,
+    });
+    expect(stripAnsi(output!)).toBe(`${"▋".repeat(18)} 0 / 128k · 0.0%`);
+  });
+
   it("uses a compact percentage label on narrow terminals", () => {
     const output = renderSegment("context", {
       ...context,
