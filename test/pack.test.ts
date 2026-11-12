@@ -14,7 +14,7 @@ const bundledThemes = [
   "vesper",
   "poimandres",
 ];
-const allowed = /^(package\/(package\.json|README\.md|LICENSE|THIRD_PARTY_NOTICES\.md|config\/(recommended\.md|packages\.json|global-agents\.md|herdr\/config\.toml)|themes\/(slop|flexoki-dark|everforest-dark-hard|gruvbox-dark|kanagawa-wave|dracula|ayu-dark|ayu-mirage|ayu-light|vesper|poimandres)\.json|prompts\/(Get-Shit-Done|Neat-Freak|aye|frontend-humanize|frontend-refine)\.md|skills\/((auto-drive|loop|project-init|tidy-memory|wait-what-cn|prompt-audit|token-analyze)\/SKILL\.md|token-analyze\/scripts\/report\.mjs)|extensions\/(openai-usage\.ts|(btw|completion|copy-block|token-analyze|openai-fast)\/.*\.ts|herdr-status\/.*\.ts|session-name\/.*\.ts|loop\/.*\.ts|memory\/.*\.ts|memory\/README\.md|prompt-snippets\/(README\.md|index\.ts|snippets\/.*\.md)|ui\/.*\.ts)))$/;
+const allowed = /^(package\/(package\.json|README\.md|LICENSE|THIRD_PARTY_NOTICES\.md|config\/(recommended\.md|packages\.json|global-agents\.md|herdr\/config\.toml)|themes\/(slop|flexoki-dark|everforest-dark-hard|gruvbox-dark|kanagawa-wave|dracula|ayu-dark|ayu-mirage|ayu-light|vesper|poimandres)\.json|prompts\/(Get-Shit-Done|Neat-Freak|aye|frontend-humanize|frontend-refine)\.md|skills\/((auto-drive|loop|project-init|tidy-memory|wait-what-cn|prompt-audit|token-analyze)\/SKILL\.md|token-analyze\/scripts\/report\.mjs)|extensions\/(openai-usage\.ts|(btw|completion|copy-block|token-analyze|openai-fast|keep-in-mind)\/.*\.ts|herdr-status\/.*\.ts|session-name\/.*\.ts|loop\/.*\.ts|memory\/.*\.ts|memory\/README\.md|prompt-snippets\/(README\.md|index\.ts|snippets\/.*\.md)|ui\/.*\.ts)))$/;
 
 describe("tarball boundary", () => {
   it("contains only reproducible package resources", () => {
@@ -37,7 +37,7 @@ describe("tarball boundary", () => {
     expect(paths).toContain("package/skills/project-init/SKILL.md");
     expect(paths).toContain("package/skills/tidy-memory/SKILL.md");
     expect(paths).toContain("package/skills/wait-what-cn/SKILL.md");
-    for (const extension of ["btw", "completion", "copy-block", "token-analyze", "openai-fast"]) {
+    for (const extension of ["btw", "completion", "copy-block", "token-analyze", "openai-fast", "keep-in-mind"]) {
       expect(paths).toContain(`package/extensions/${extension}/index.ts`);
     }
     for (const skill of ["prompt-audit", "token-analyze"]) expect(paths).toContain(`package/skills/${skill}/SKILL.md`);

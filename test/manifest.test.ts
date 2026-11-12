@@ -32,6 +32,7 @@ describe("package boundary", () => {
       "./extensions/loop/index.ts",
       "./extensions/memory/index.ts",
       "./extensions/prompt-snippets/index.ts",
+      "./extensions/keep-in-mind/index.ts",
       "./extensions/openai-usage.ts",
       "./extensions/openai-fast/index.ts",
       "./extensions/btw/index.ts",
@@ -48,7 +49,7 @@ describe("package boundary", () => {
     const skill = readFileSync(join(process.cwd(), "skills", "auto-drive", "SKILL.md"), "utf8");
     expect(skill).toContain("name: auto-drive");
     expect(skill).toContain("disable-model-invocation: true");
-    expect(skill).toContain("```text\n/implement <ticket 链接>\n```");
+    expect(skill).toContain("```text\n/skill:implement <ticket 链接>\n");
   });
 
   it("ships Loop as a model-invoked natural-language skill", () => {

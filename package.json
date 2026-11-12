@@ -29,6 +29,7 @@
       "./extensions/loop/index.ts",
       "./extensions/memory/index.ts",
       "./extensions/prompt-snippets/index.ts",
+      "./extensions/keep-in-mind/index.ts",
       "./extensions/openai-usage.ts",
       "./extensions/openai-fast/index.ts",
       "./extensions/btw/index.ts",

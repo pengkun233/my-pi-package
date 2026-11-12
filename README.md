@@ -1,6 +1,6 @@
 # my-pi-package
 
-Private personal [Pi](https://pi.dev) package for reproducing this setup on another machine. It bundles an always-on TUI, isolated side chat, completion metadata, source-block copying, a session-scoped Loop scheduler, progressive memory, a prompt-snippet picker, Codex subscription usage, an OpenAI Fast toggle, independent prompt/configuration audit skills, three user-invoked workflow skills, five prompt templates, eleven selectable themes, recommended global interaction preferences, and reference Herdr configuration. It contains no credentials, sessions, memory data, or other machine state.
+Private personal [Pi](https://pi.dev) package for reproducing this setup on another machine. It bundles an always-on TUI, isolated side chat, completion metadata, source-block copying, a session-scoped Loop scheduler, progressive memory, a prompt-snippet picker, periodic keep-in-mind reminders, Codex subscription usage, an OpenAI Fast toggle, independent prompt/configuration audit skills, three user-invoked workflow skills, five prompt templates, eleven selectable themes, recommended global interaction preferences, and reference Herdr configuration. It contains no credentials, sessions, memory data, or other machine state.
 
 ## Install
 
@@ -116,6 +116,24 @@ Loop publishes background activity through the terminal-status plugin's generic 
 ### Prompt snippets
 
 `extensions/prompt-snippets/` provides `Alt+Shift+S` and `/snippets` for toggling small prepend/append rules on the next message. It merges package defaults from its adjacent `snippets/` directory with machine-local files under `~/.pi/agent/snippets/`; a local file overrides a packaged snippet with the same filename. Package updates synchronize defaults, while private or machine-specific snippets remain outside Git and must be synchronized separately when desired.
+
+### Keep in mind
+
+`extensions/keep-in-mind/` appends a short, hidden reminder near the latest question, using the same public `ctx.getContextUsage()` estimate as the footer. It reminds on the first question, then after each additional 10,000 context tokens, checked when the next user-style prompt starts. Tool continuations and custom-message-started runs do not insert reminders. Existing messages and the system prompt stay unchanged; each reminder remains in history until normal compaction removes it.
+
+Customize `~/.pi/agent/keep-in-mind.json` (or `$PI_CODING_AGENT_DIR/keep-in-mind.json`):
+
+```json
+{
+  "enabled": true,
+  "intervalTokens": 10000,
+  "prompt": "用自然、容易理解的中文回答。对象称呼具体，保留必要解释。"
+}
+```
+
+All fields are optional. With no file, reminders are enabled with the bundled Chinese readability prompt. An empty prompt or `enabled: false` stops future reminders. The file is read at each new prompt; edits need no reload. A changed prompt is inserted on the next question. Invalid configuration skips that reminder and reports a warning in UI modes.
+
+`/keep-in-mind` or `/keep-in-mind status` shows the effective prompt, interval, progress and configuration path. Reminder checkpoints are restored from the active branch on reload, resume, fork and tree navigation. Compaction starts a new interval and adds one reminder at the next question. If Pi temporarily reports unknown usage, the first available reading becomes the new baseline; unknown readings never count as zero. Falling estimates are rebased without an extra reminder. The interval measures context growth, not cumulative billed input tokens, and a long task can cross several intervals before a single reminder is inserted at the next question.
 
 ### Isolated side conversation
 
